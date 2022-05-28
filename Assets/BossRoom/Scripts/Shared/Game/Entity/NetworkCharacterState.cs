@@ -108,17 +108,28 @@ namespace Unity.Multiplayer.Samples.BossRoom
         /// <summary>
         /// Gets invoked when inputs are received from the client which own this networked character.
         /// </summary>
+#if !P56
         public event Action<Vector3> ReceivedClientInput;
+#else   // P56
+        public event Action<ActionMovement> ReceivedClientInput;
+#endif   // P56
 
         /// <summary>
         /// RPC to send inputs for this character from a client to a server.
         /// </summary>
         /// <param name="movementTarget">The position which this character should move towards.</param>
         [ServerRpc]
+#if !P56
         public void SendCharacterInputServerRpc(Vector3 movementTarget)
         {
             ReceivedClientInput?.Invoke(movementTarget);
         }
+#else   // P56
+        public void SendCharacterInputServerRpc(ActionMovement movementTarget)
+        {
+            ReceivedClientInput?.Invoke(movementTarget);
+        }
+#endif   // P56
 
         // ACTION SYSTEM
 

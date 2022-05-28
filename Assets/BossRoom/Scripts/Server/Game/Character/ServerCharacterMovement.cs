@@ -31,6 +31,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
         private NavigationSystem m_NavigationSystem;
 
         private DynamicNavPath m_NavPath;
+#if P56
+        private Quaternion m_Direction = default;
+#endif  // P56
 
         private MovementState m_MovementState;
 
@@ -78,6 +81,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
         /// Sets a movement target. We will path to this position, avoiding static obstacles.
         /// </summary>
         /// <param name="position">Position in world space to path to. </param>
+#if !P56
         public void SetMovementTarget(Vector3 position)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -90,6 +94,21 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             m_MovementState = MovementState.PathFollowing;
             m_NavPath.SetTargetPosition(position);
         }
+#else   // P56
+        public void SetMovementTarget(ActionMovement position)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (TeleportModeActivated)
+            {
+                Teleport(position.Position);
+                return;
+            }
+#endif
+            m_MovementState = MovementState.PathFollowing;
+            m_NavPath.SetTargetPosition(position.Position);
+            m_Direction = position.Direction;
+        }
+#endif   // P56
 
         public void StartForwardCharge(float speed, float duration)
         {
@@ -231,15 +250,33 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
                 movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount);
 
                 // If we didn't move stop moving.
+#if !P56
                 if (movementVector == Vector3.zero)
+#else   // P56
+                // Stop moving.
+                if (movementVector == Vector3.zero && ActionMovement.IsZero(m_Direction))
                 {
                     m_MovementState = MovementState.Idle;
                     return;
                 }
+#endif   // P56
             }
 
             m_NavMeshAgent.Move(movementVector);
+#if !P56
             transform.rotation = Quaternion.LookRotation(movementVector);
+#else   // P56
+            // Perform the existing process when state is charging and knockback.
+            // NPC's "m_Direction" is always zero.
+            if (m_MovementState == MovementState.Charging || m_MovementState == MovementState.Knockback || ActionMovement.IsZero(m_Direction))
+            {
+                transform.rotation = Quaternion.LookRotation(movementVector);
+            }
+            else
+            {
+                transform.rotation = m_Direction;
+            }
+#endif   // P56
 
             // After moving adjust the position of the dynamic rigidbody.
             m_Rigidbody.position = transform.position;

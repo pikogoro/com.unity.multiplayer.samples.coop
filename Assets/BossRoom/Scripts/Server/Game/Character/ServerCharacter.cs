@@ -141,7 +141,11 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             }
         }
 
+#if !P56
         private void OnClientMoveRequest(Vector3 targetPosition)
+#else   // P56
+        private void OnClientMoveRequest(ActionMovement targetPosition)
+#endif  // P56
         {
             if (NetState.LifeState == LifeState.Alive && !m_Movement.IsPerformingForcedMovement())
             {
