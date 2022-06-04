@@ -84,6 +84,11 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
                 {
                     m_Parent.physicsWrapper.Transform.forward = diff;
                 }
+
+#if P56
+                // "Lock on" the target.
+                m_Movement.LockOnTransform(targetObject.transform);
+#endif  // P56
             }
         }
     }

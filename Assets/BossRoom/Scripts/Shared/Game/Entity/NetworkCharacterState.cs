@@ -121,15 +121,12 @@ namespace Unity.Multiplayer.Samples.BossRoom
         [ServerRpc]
 #if !P56
         public void SendCharacterInputServerRpc(Vector3 movementTarget)
-        {
-            ReceivedClientInput?.Invoke(movementTarget);
-        }
 #else   // P56
         public void SendCharacterInputServerRpc(ActionMovement movementTarget)
+#endif   // P56
         {
             ReceivedClientInput?.Invoke(movementTarget);
         }
-#endif   // P56
 
         // ACTION SYSTEM
 

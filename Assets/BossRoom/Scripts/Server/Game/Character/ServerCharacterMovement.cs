@@ -32,7 +32,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 
         private DynamicNavPath m_NavPath;
 #if P56
-        private Quaternion m_Direction = default;
+        private Quaternion m_Direction = default;   // default is all zero
+        private bool m_hasLockOnTarget = false;
+        public bool HasLockedOnTarget { get { return m_hasLockOnTarget;  } }
 #endif  // P56
 
         private MovementState m_MovementState;
@@ -83,32 +85,39 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
         /// <param name="position">Position in world space to path to. </param>
 #if !P56
         public void SetMovementTarget(Vector3 position)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (TeleportModeActivated)
-            {
-                Teleport(position);
-                return;
-            }
-#endif
-            m_MovementState = MovementState.PathFollowing;
-            m_NavPath.SetTargetPosition(position);
-        }
 #else   // P56
         public void SetMovementTarget(ActionMovement position)
+#endif   // P56
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (TeleportModeActivated)
             {
+#if !P56
+                Teleport(position);
+#else   // P56
                 Teleport(position.Position);
+#endif   // P56
                 return;
             }
 #endif
             m_MovementState = MovementState.PathFollowing;
-            m_NavPath.SetTargetPosition(position.Position);
-            m_Direction = position.Direction;
-        }
+#if !P56
+            m_NavPath.SetTargetPosition(position);
+#else   // P56
+            if (ActionMovement.IsZero(position.Direction))
+            {
+                // Set direction to default (all zero) if movement is finished.
+                m_Direction = (position.Position == transform.position) ? default : transform.rotation;
+            }
+            else
+            {
+                // Reset lock on.
+                m_hasLockOnTarget = false;
+                m_Direction = position.Direction;
+            }
+            m_NavPath.SetTargetPosition(position.Position, m_hasLockOnTarget);
 #endif   // P56
+        }
 
         public void StartForwardCharge(float speed, float duration)
         {
@@ -136,6 +145,15 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             m_MovementState = MovementState.PathFollowing;
             m_NavPath.FollowTransform(followTransform);
         }
+
+#if P56
+        public void LockOnTransform(Transform lockOnTransform)
+        {
+            m_MovementState = MovementState.PathFollowing;
+            m_NavPath.LockOnTransform(lockOnTransform);
+            m_hasLockOnTarget = true;
+        }
+#endif  // P56
 
         /// <summary>
         /// Returns true if the current movement-mode is unabortable (e.g. a knockback effect)
@@ -249,8 +267,8 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
                 var desiredMovementAmount = GetBaseMovementSpeed() * Time.fixedDeltaTime;
                 movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount);
 
-                // If we didn't move stop moving.
 #if !P56
+                // If we didn't move stop moving.
                 if (movementVector == Vector3.zero)
 #else   // P56
                 // Stop moving.
@@ -266,11 +284,14 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 #if !P56
             transform.rotation = Quaternion.LookRotation(movementVector);
 #else   // P56
-            // Perform the existing process when state is charging and knockback.
-            // NPC's "m_Direction" is always zero.
+            // Change direction.
             if (m_MovementState == MovementState.Charging || m_MovementState == MovementState.Knockback || ActionMovement.IsZero(m_Direction))
             {
                 transform.rotation = Quaternion.LookRotation(movementVector);
+            }
+            else if (m_NavPath.TransformLockOnTarget != null)
+            {
+                transform.LookAt(m_NavPath.TransformLockOnTarget.position);
             }
             else
             {
@@ -315,5 +336,19 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
                     return MovementStatus.Normal;
             }
         }
+
+/*#if P56
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        void OnGUI()
+        {
+            if (!m_CharLogic.IsNpc)
+            {
+                GUI.Label(new Rect(256, 40, 200, 20), "Position: " + transform.position.ToString());
+                GUI.Label(new Rect(256, 60, 200, 20), "Direction: " + transform.rotation.eulerAngles.ToString());
+                //GUI.Label(new Rect(256, 80, 200, 20), "Direction: " + m_Direction.eulerAngles.ToString());
+            }
+        }
+#endif
+#endif  // P56*/
     }
 }

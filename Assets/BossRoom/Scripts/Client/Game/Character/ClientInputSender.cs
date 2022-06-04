@@ -186,14 +186,13 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             {
                 return;
             }
+#endif  // P56
 
             if (m_MoveRequest)
             {
+#if !P56
                 m_MoveRequest = false;
-#else  // P56
-            if (m_MoveRequest)
 #endif  // P56
-            {
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
                     m_LastSentMove = Time.time;
@@ -233,15 +232,16 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                     if (m_IsMouseDown)
                     {
                         float yaw = (Input.mousePosition.x - m_MouseDownPosition.x) / 90f;
-                        //float pitch = (Input.mousePosition.y - m_MouseDownPosition.y) / 90f;
+                        //float pitch = (Input.mousePosition.y - m_MouseDownPosition.y);
                         if (Math.Abs(yaw) > 30f)
                         {
                             yaw = (yaw > 0) ? 30f : -30f;
                         }
-                        //if (Math.Abs(pitch) > 30f)
-                        //{
-                        //    pitch = (pitch > 0) ? 30f : -30f;
-                        //}
+                        /*if (Math.Abs(pitch) > 30f)
+                        {
+                            pitch = (pitch > 0) ? 30f : -30f;
+                        }
+                        movement.Direction = transform.rotation * Quaternion.Euler(pitch, yaw, 0f);*/
                         movement.Direction = transform.rotation * Quaternion.Euler(0f, yaw, 0f);
                     }
                     // Stop character's moving and rotation if no any input.
@@ -253,7 +253,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                     // Anything else, not change direction of character's facing.
                     else
                     {
-                        movement.Direction = transform.rotation;
+                        movement.Direction = default;
                     }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -277,12 +277,14 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             }
         }
 
-#if P56 && (UNITY_EDITOR || DEVELOPMENT_BUILD)
+#if P56
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         void OnGUI()
         {
             GUI.Label(new Rect(256, 0, 200, 20), "Position: " + m_ActionMovement.Position.ToString());
             GUI.Label(new Rect(256, 20, 200, 20), "Direction: " + m_ActionMovement.Direction.eulerAngles.ToString());
         }
+#endif
 #endif  // P56
 
         /// <summary>

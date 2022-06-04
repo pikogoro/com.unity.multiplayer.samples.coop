@@ -42,6 +42,14 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
         /// </summary>
         Transform m_TransformTarget;
 
+#if P56
+        /// <summary>
+        /// A transform target locked on.
+        /// </summary>
+        Transform m_TransformLockOnTarget;
+        public Transform TransformLockOnTarget { get { return m_TransformLockOnTarget; } }
+#endif  // P56
+
         /// <summary>
         /// Creates a new instance of the <see cref="DynamicNavPath"/>.
         /// </summary>
@@ -68,11 +76,27 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             m_TransformTarget = target;
         }
 
+#if P56
+        /// <summary>
+        /// Set the target to "lock on".
+        /// </summary>
+        /// <param name="target">The transform to "lock on".</param>
+        public void LockOnTransform(Transform target)
+        {
+            m_TransformLockOnTarget = target;
+        }
+#endif  // P56
+
         /// <summary>
         /// Set the target of this path to a static position target.
         /// </summary>
         /// <param name="target">The target position.</param>
+#if !P56
         public void SetTargetPosition(Vector3 target)
+#else   // P56
+        /// <param name="hasLockOnTarget">Whether has a "locked on" target.</param>
+        public void SetTargetPosition(Vector3 target, bool hasLockOnTarget)
+#endif  // P56
         {
             // If there is an nav mesh area close to the target use a point inside the nav mesh instead.
             if (NavMesh.SamplePosition(target, out NavMeshHit hit, 2f, NavMesh.AllAreas))
@@ -82,6 +106,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 
             m_PositionTarget = target;
             m_TransformTarget = null;
+#if P56
+            if (!hasLockOnTarget)
+            {
+                m_TransformLockOnTarget = null;
+            }
+#endif  // P56
             RecalculatePath();
         }
 
