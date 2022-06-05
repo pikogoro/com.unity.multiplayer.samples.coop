@@ -232,17 +232,16 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                     if (m_IsMouseDown)
                     {
                         float yaw = (Input.mousePosition.x - m_MouseDownPosition.x) / 90f;
-                        //float pitch = (Input.mousePosition.y - m_MouseDownPosition.y);
+                        float pitch = (Input.mousePosition.y - m_MouseDownPosition.y) / 2f;
                         if (Math.Abs(yaw) > 30f)
                         {
                             yaw = (yaw > 0) ? 30f : -30f;
                         }
-                        /*if (Math.Abs(pitch) > 30f)
+                        if (Math.Abs(pitch) > 30f)
                         {
                             pitch = (pitch > 0) ? 30f : -30f;
                         }
-                        movement.Direction = transform.rotation * Quaternion.Euler(pitch, yaw, 0f);*/
-                        movement.Direction = transform.rotation * Quaternion.Euler(0f, yaw, 0f);
+                        movement.Direction = transform.rotation * Quaternion.Euler(pitch, yaw, 0f);
                     }
                     // Stop character's moving and rotation if no any input.
                     else if (movement.Position == transform.position && !m_IsMouseDown)

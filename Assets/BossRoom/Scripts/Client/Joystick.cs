@@ -32,7 +32,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             m_Handle.anchoredPosition = Vector2.zero;
         }
 
-        public virtual void OnPointerDown(PointerEventData eventData)
+        public void OnPointerDown(PointerEventData eventData)
         {
             OnDrag(eventData);
         }
@@ -49,7 +49,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             m_Handle.anchoredPosition = m_Input * radius;
         }
 
-        public virtual void OnPointerUp(PointerEventData eventData)
+        public void OnPointerUp(PointerEventData eventData)
         {
             m_Input = Vector2.zero;
             m_Handle.anchoredPosition = Vector2.zero;

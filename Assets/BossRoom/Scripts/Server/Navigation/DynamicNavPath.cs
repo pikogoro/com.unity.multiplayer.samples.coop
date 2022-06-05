@@ -46,7 +46,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
         /// <summary>
         /// A transform target locked on.
         /// </summary>
-        Transform m_TransformLockOnTarget;
+        Transform m_TransformLockOnTarget = null;
         public Transform TransformLockOnTarget { get { return m_TransformLockOnTarget; } }
 #endif  // P56
 

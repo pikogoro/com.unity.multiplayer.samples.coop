@@ -273,11 +273,11 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 #else   // P56
                 // Stop moving.
                 if (movementVector == Vector3.zero && ActionMovement.IsZero(m_Direction))
+#endif   // P56
                 {
                     m_MovementState = MovementState.Idle;
                     return;
                 }
-#endif   // P56
             }
 
             m_NavMeshAgent.Move(movementVector);
@@ -337,7 +337,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             }
         }
 
-/*#if P56
+#if P56
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         void OnGUI()
         {
@@ -349,6 +349,6 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             }
         }
 #endif
-#endif  // P56*/
+#endif  // P56
     }
 }
