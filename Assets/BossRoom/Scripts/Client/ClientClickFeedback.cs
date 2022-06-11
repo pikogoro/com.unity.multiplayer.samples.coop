@@ -36,8 +36,10 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
         void OnClientMove(Vector3 position)
         {
+#if !P56
             m_FeedbackObj.SetActive(true);
             m_ClickFeedbackLerper.SetTarget(position);
+#endif  // P56
         }
 
         public override void OnDestroy()

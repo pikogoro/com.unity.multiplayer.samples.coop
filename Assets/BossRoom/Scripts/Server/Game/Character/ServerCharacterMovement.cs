@@ -34,7 +34,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 #if P56
         private Quaternion m_Direction = default;   // default is all zero
         private bool m_hasLockOnTarget = false;
-        public bool HasLockedOnTarget { get { return m_hasLockOnTarget;  } }
+        public bool HasLockOnTarget { get { return m_hasLockOnTarget;  } }
 #endif  // P56
 
         private MovementState m_MovementState;

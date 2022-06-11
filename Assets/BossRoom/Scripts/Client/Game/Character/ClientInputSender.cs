@@ -231,7 +231,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                     // Change direction of character's facing during mouse dragging.
                     if (m_IsMouseDown)
                     {
-                        float yaw = (Input.mousePosition.x - m_MouseDownPosition.x) / 90f;
+                        float yaw = (Input.mousePosition.x - m_MouseDownPosition.x) / 60f;
                         float pitch = (Input.mousePosition.y - m_MouseDownPosition.y) / 2f;
                         if (Math.Abs(yaw) > 30f)
                         {

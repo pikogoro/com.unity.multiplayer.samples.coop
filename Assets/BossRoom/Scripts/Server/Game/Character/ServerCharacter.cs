@@ -164,7 +164,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 #if !P56
                 m_ActionPlayer.CancelRunningActionsByLogic(ActionLogic.Target, true); //clear target on move.
 #else   // P56
-                if (!m_Movement.HasLockedOnTarget)
+                if (!m_Movement.HasLockOnTarget)
                 {
                     m_ActionPlayer.CancelRunningActionsByLogic(ActionLogic.Target, true); //clear target on move.
                 }
