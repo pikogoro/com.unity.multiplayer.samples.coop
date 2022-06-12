@@ -4,6 +4,9 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Assertions;
 using UnityEngine.EventSystems;
+#if P56
+using Unity.Multiplayer.Samples.BossRoom.Visual;
+#endif  // P56
 
 namespace Unity.Multiplayer.Samples.BossRoom.Client
 {
@@ -110,6 +113,8 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         Joystick m_Joystick;
         bool m_IsMouseDown = false;
         Vector3 m_MouseDownPosition = Vector3.zero;
+        CameraController m_CameraController;
+        float m_LastPitch = 0f;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         ActionMovement m_ActionMovement;
 #endif
@@ -134,10 +139,15 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         {
             m_NetworkCharacter = GetComponent<NetworkCharacterState>();
             m_MainCamera = Camera.main;
-#if P56
-            m_Joystick = GameObject.Find("Joystick").GetComponent<Joystick>();
-#endif  // P56
         }
+
+#if P56
+        void Start()
+        {
+            m_CameraController = GetComponentInChildren<CameraController>();
+            m_Joystick = GameObject.Find("Joystick").GetComponent<Joystick>();
+        }
+#endif  // P56
 
         void FinishSkill()
         {
@@ -232,7 +242,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                     if (m_IsMouseDown)
                     {
                         float yaw = (Input.mousePosition.x - m_MouseDownPosition.x) / 60f;
-                        float pitch = (Input.mousePosition.y - m_MouseDownPosition.y) / 2f;
+                        float pitch = (Input.mousePosition.y - m_MouseDownPosition.y) / 60f + m_LastPitch;
                         if (Math.Abs(yaw) > 30f)
                         {
                             yaw = (yaw > 0) ? 30f : -30f;
@@ -242,6 +252,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                             pitch = (pitch > 0) ? 30f : -30f;
                         }
                         movement.Direction = transform.rotation * Quaternion.Euler(pitch, yaw, 0f);
+                        m_LastPitch = pitch;
                     }
                     // Stop character's moving and rotation if no any input.
                     else if (movement.Position == transform.position && !m_IsMouseDown)
@@ -270,6 +281,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
                         //Send our client only click request
                         ClientMoveEvent?.Invoke(hit.position);
+
+                        // Update character's pitch during drag.
+                        if (m_IsMouseDown)
+                        {
+                            m_CameraController.SetPitch(m_LastPitch);
+                        }
                     }
 #endif  // P56
                 }

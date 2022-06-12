@@ -295,7 +295,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             }
             else
             {
-                transform.rotation = m_Direction;
+                transform.rotation = Quaternion.Euler(new Vector3(0f, m_Direction.eulerAngles.y, 0f));
             }
 #endif   // P56
 
@@ -337,7 +337,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             }
         }
 
-#if P56
+/*#if P56
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         void OnGUI()
         {
@@ -349,6 +349,6 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             }
         }
 #endif
-#endif  // P56
+#endif  // P56*/
     }
 }
