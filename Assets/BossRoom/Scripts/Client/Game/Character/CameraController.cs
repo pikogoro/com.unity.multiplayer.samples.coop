@@ -1,6 +1,9 @@
 using Cinemachine;
 using UnityEngine;
 using UnityEngine.Assertions;
+#if P56
+using System;
+#endif  // P56
 
 namespace Unity.Multiplayer.Samples.BossRoom.Visual
 {
@@ -78,22 +81,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             if (Input.GetKeyDown(KeyCode.Backslash))
             {
                 m_IsFPSView = !m_IsFPSView;
-
-                if (m_IsFPSView)
-                {
-                    m_CamTransform.localPosition = new Vector3(0f, 1.3f, 0.5f);
-                    m_CamTransform.localRotation = Quaternion.Euler(0f, 0f, 0f);
-                    m_BoneHead.SetActive(false);
-                }
-                else
-                {
-                    m_CamTransform.localPosition = new Vector3(0f, 3f, -5f);
-                    m_CamTransform.localRotation = Quaternion.Euler(15f, 0f, 0f);
-                    m_BoneHead.SetActive(true);
-                }
             }
 
-            // Update character's piatch.
+            // Update character's pitch.
             Vector3 targetPosition;
             Quaternion targetRotation;
 
@@ -101,12 +91,13 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             {
                 targetPosition = new Vector3(0f, 1.3f, 0.5f);
                 targetRotation = Quaternion.Euler(-m_Pitch, 0f, 0f);
+                m_BoneHead.SetActive(false);
             }
             else
             {
-                // TODO chunning up camera position.
-                targetPosition = new Vector3(0f, 3f - m_Pitch / 30f, -5f);
+                targetPosition = new Vector3(0f, 3f - m_Pitch / 30f, 3f * Math.Abs(m_Pitch) / 30f - 5f);
                 targetRotation = Quaternion.Euler(15f - m_Pitch, 0f, 0f);
+                m_BoneHead.SetActive(true);
             }
 
             // Lerp of character's view.
