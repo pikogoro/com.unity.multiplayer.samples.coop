@@ -333,7 +333,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 }
 
                 int networkedHitIndex = -1;
+#if !P56
                 for (int i = 0; i < numHits; i++)
+#else   // P56
+                // Choose the closest object. 
+                for (int i = numHits - 1; i >= 0; i--)
+#endif  // P56
                 {
                     if (k_CachedHit[i].transform.GetComponentInParent<NetworkObject>())
                     {
@@ -359,7 +364,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 // in the desired direction. For others, like mage's bolts, this will fire a "miss" projectile at the spot clicked on.)
 
                 var data = new ActionRequestData();
+#if !P56
                 PopulateSkillRequest(k_CachedHit[0].point, actionType, ref data);
+#else   // P56
+                // Use the character's facing direction.
+                PopulateSkillRequest(transform.position + transform.forward, actionType, ref data);
+#endif  // P56
 
                 SendInput(data);
             }
@@ -538,14 +548,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 RequestAction(ActionType.Emote4, SkillTriggerStyle.Keyboard);
             }
 
-#if P56
-            // Start moving by input from Joystick.
-            if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f)
-            {
-                m_MoveRequest = true;
-            }
-#endif  // P56
-
+#if !P56
             if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
             {
                 //IsPointerOverGameObject() is a simple way to determine if the mouse is over a UI element. If it is, we don't perform mouse input logic,
@@ -556,7 +559,6 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                     RequestAction(CharacterData.Skill1, SkillTriggerStyle.MouseClick);
                 }
 
-#if !P56
                 if (Input.GetMouseButtonDown(0))
                 {
                     RequestAction(ActionType.GeneralTarget, SkillTriggerStyle.MouseClick);
@@ -565,23 +567,46 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 {
                     m_MoveRequest = true;
                 }
-#else   // P56
-                // Start rotation of character's facing by mouse button down.
-                if (Input.GetMouseButtonDown(0))
-                {
-                    RequestAction(ActionType.GeneralTarget, SkillTriggerStyle.MouseClick);
-                    m_IsMouseDown = true;
-                    m_MouseDownPosition = Input.mousePosition;
-                    m_MoveRequest = true;
-                }
-                // Stop rotation of character's facing by mouse bottun up.
-                else if (Input.GetMouseButtonUp(0))
-                {
-                    m_IsMouseDown = false;
-                    m_MouseDownPosition = Vector3.zero;
-                }
-#endif  // P56
             }
+#else   // P56
+            // Start moving by input from Joystick.
+            if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f)
+            {
+                m_MoveRequest = true;
+            }
+
+            // Ignore mouse down (or touch) if the position is over UI game object.
+#if UNITY_EDITOR
+            if (EventSystem.current.IsPointerOverGameObject() || m_CurrentSkillInput != null)
+            {
+                return;
+            }
+#else
+            // For mobile device.
+            for (int i = 0; i < Input.touchCount; i++)
+            {
+                if (EventSystem.current.IsPointerOverGameObject(Input.GetTouch(i).fingerId) || m_CurrentSkillInput != null)
+                {
+                    return;
+                }
+            }
+#endif
+
+            // Start rotation of character's facing by mouse button down.
+            if (Input.GetMouseButtonDown(0))
+            {
+                RequestAction(ActionType.GeneralTarget, SkillTriggerStyle.MouseClick);
+                m_MouseDownPosition = Input.mousePosition;
+                m_IsMouseDown = true;
+                m_MoveRequest = true;
+            }
+            // Stop rotation of character's facing by mouse bottun up.
+            else if (Input.GetMouseButtonUp(0))
+            {
+                m_MouseDownPosition = Vector3.zero;
+                m_IsMouseDown = false;
+            }
+#endif  // P56
         }
     }
 }
