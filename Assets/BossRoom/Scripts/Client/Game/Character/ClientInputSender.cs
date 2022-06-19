@@ -115,6 +115,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         Vector3 m_MouseDownPosition = Vector3.zero;
         CameraController m_CameraController;
         float m_LastPitch = 0f;
+#if UNITY_ANDROID
+        int m_TouchFingerId = -1;
+#endif
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         ActionMovement m_ActionMovement;
 #endif
@@ -146,6 +149,10 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         {
             m_CameraController = GetComponentInChildren<CameraController>();
             m_Joystick = GameObject.Find("Joystick").GetComponent<Joystick>();
+#if UNITY_STANDALONE
+            // Disable the joystick if standalone.
+            m_Joystick.enabled = false;
+#endif
         }
 #endif  // P56
 
@@ -241,8 +248,23 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                     // Change direction of character's facing during mouse dragging.
                     if (m_IsMouseDown)
                     {
-                        float yaw = (Input.mousePosition.x - m_MouseDownPosition.x) / 60f;
-                        float pitch = (Input.mousePosition.y - m_MouseDownPosition.y) / 60f + m_LastPitch;
+#if UNITY_STANDALONE
+                        Vector2 position = Input.mousePosition;
+#elif UNITY_ANDROID
+                        Vector2 position = Vector2.zero;
+                        for (int i = 0; i < Input.touchCount; i++)
+                        {
+                            Touch touch = Input.GetTouch(i);
+                            if (m_TouchFingerId == touch.fingerId)
+                            {
+                                position = touch.position;
+                                break;
+                            }
+                        }
+#endif
+                        float yaw = (position.x - m_MouseDownPosition.x) / 60f;
+                        float pitch = (position.y - m_MouseDownPosition.y) / 60f + m_LastPitch;
+
                         if (Math.Abs(yaw) > 30f)
                         {
                             yaw = (yaw > 0) ? 30f : -30f;
@@ -289,7 +311,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                         }
                     }
 #endif  // P56
-                }
+                    }
             }
         }
 
@@ -576,36 +598,49 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             }
 
             // Ignore mouse down (or touch) if the position is over UI game object.
-#if UNITY_EDITOR
-            if (EventSystem.current.IsPointerOverGameObject() || m_CurrentSkillInput != null)
+#if UNITY_STANDALONE
+            if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
             {
-                return;
+                // Start rotation of character's facing by mouse button down.
+                if (Input.GetMouseButtonDown(0))
+                {
+                    RequestAction(ActionType.GeneralTarget, SkillTriggerStyle.MouseClick);
+                    m_MouseDownPosition = Input.mousePosition;
+                    m_IsMouseDown = true;
+                    m_MoveRequest = true;
+                }
+                // Stop rotation of character's facing by mouse bottun up.
+                if (Input.GetMouseButtonUp(0))
+                {
+                    m_MouseDownPosition = Vector3.zero;
+                    m_IsMouseDown = false;
+                }
             }
-#else
-            // For mobile device.
+#elif UNITY_ANDROID
             for (int i = 0; i < Input.touchCount; i++)
             {
-                if (EventSystem.current.IsPointerOverGameObject(Input.GetTouch(i).fingerId) || m_CurrentSkillInput != null)
+                Touch touch = Input.GetTouch(i);
+                if (!EventSystem.current.IsPointerOverGameObject(touch.fingerId) && m_CurrentSkillInput == null)
                 {
-                    return;
+                    // Start rotation of character's facing by mouse button down.
+                    if (touch.phase == TouchPhase.Began)
+                    {
+                        RequestAction(ActionType.GeneralTarget, SkillTriggerStyle.MouseClick);
+                        m_MouseDownPosition = touch.position;
+                        m_IsMouseDown = true;
+                        m_MoveRequest = true;
+                        m_TouchFingerId = touch.fingerId;
+                    }
+                    // Stop rotation of character's facing by mouse bottun up.
+                    if (touch.phase == TouchPhase.Ended)
+                    {
+                        m_MouseDownPosition = Vector3.zero;
+                        m_IsMouseDown = false;
+                        m_TouchFingerId = -1;
+                    }
                 }
             }
 #endif
-
-            // Start rotation of character's facing by mouse button down.
-            if (Input.GetMouseButtonDown(0))
-            {
-                RequestAction(ActionType.GeneralTarget, SkillTriggerStyle.MouseClick);
-                m_MouseDownPosition = Input.mousePosition;
-                m_IsMouseDown = true;
-                m_MoveRequest = true;
-            }
-            // Stop rotation of character's facing by mouse bottun up.
-            else if (Input.GetMouseButtonUp(0))
-            {
-                m_MouseDownPosition = Vector3.zero;
-                m_IsMouseDown = false;
-            }
 #endif  // P56
         }
     }
