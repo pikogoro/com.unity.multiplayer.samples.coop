@@ -32,7 +32,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 
         private DynamicNavPath m_NavPath;
 #if P56
-        private Quaternion m_Direction = default;   // default is all zero
+        private Quaternion m_Rotation = ActionMovement.RotationNull;
         private bool m_hasLockOnTarget = false;
         public bool HasLockOnTarget { get { return m_hasLockOnTarget;  } }
 #endif  // P56
@@ -86,7 +86,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 #if !P56
         public void SetMovementTarget(Vector3 position)
 #else   // P56
-        public void SetMovementTarget(ActionMovement position)
+        public void SetMovementTarget(ActionMovement movement)
 #endif   // P56
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -95,7 +95,10 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 #if !P56
                 Teleport(position);
 #else   // P56
-                Teleport(position.Position);
+                if (!ActionMovement.IsNull(movement.Position))
+                {
+                    Teleport(movement.Position);
+                }
 #endif   // P56
                 return;
             }
@@ -104,18 +107,26 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 #if !P56
             m_NavPath.SetTargetPosition(position);
 #else   // P56
-            if (ActionMovement.IsZero(position.Direction))
+            if (ActionMovement.IsNull(movement.Position))
             {
-                // Set direction to default (all zero) if movement is finished.
-                m_Direction = (position.Position == transform.position) ? default : transform.rotation;
+                m_NavPath.SetTargetPosition(transform.position, m_hasLockOnTarget);
+            }
+            else
+            {
+                m_NavPath.SetTargetPosition(movement.Position, m_hasLockOnTarget);
+            }
+
+            if (ActionMovement.IsNull(movement.Rotation))
+            {
+                // Set direction to null if movement is finished.
+                m_Rotation = (ActionMovement.IsNull(movement.Position)) ? ActionMovement.RotationNull : transform.rotation;
             }
             else
             {
                 // Reset lock on.
                 m_hasLockOnTarget = false;
-                m_Direction = position.Direction;
+                m_Rotation = movement.Rotation;
             }
-            m_NavPath.SetTargetPosition(position.Position, m_hasLockOnTarget);
 #endif   // P56
         }
 
@@ -272,7 +283,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
                 if (movementVector == Vector3.zero)
 #else   // P56
                 // Stop moving.
-                if (movementVector == Vector3.zero && ActionMovement.IsZero(m_Direction))
+                if (movementVector == Vector3.zero && ActionMovement.IsNull(m_Rotation))
 #endif   // P56
                 {
                     m_MovementState = MovementState.Idle;
@@ -285,7 +296,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             transform.rotation = Quaternion.LookRotation(movementVector);
 #else   // P56
             // Change direction.
-            if (m_MovementState == MovementState.Charging || m_MovementState == MovementState.Knockback || ActionMovement.IsZero(m_Direction))
+            if (m_MovementState == MovementState.Charging || m_MovementState == MovementState.Knockback || ActionMovement.IsNull(m_Rotation))
             {
                 transform.rotation = Quaternion.LookRotation(movementVector);
             }
@@ -295,7 +306,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
             }
             else
             {
-                transform.rotation = Quaternion.Euler(new Vector3(0f, m_Direction.eulerAngles.y, 0f));
+                transform.rotation = Quaternion.Euler(new Vector3(0f, m_Rotation.eulerAngles.y, 0f));
             }
 #endif   // P56
 
@@ -336,19 +347,5 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
                     return MovementStatus.Normal;
             }
         }
-
-/*#if P56
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        void OnGUI()
-        {
-            if (!m_CharLogic.IsNpc)
-            {
-                GUI.Label(new Rect(256, 40, 200, 20), "Position: " + transform.position.ToString());
-                GUI.Label(new Rect(256, 60, 200, 20), "Direction: " + transform.rotation.eulerAngles.ToString());
-                //GUI.Label(new Rect(256, 80, 200, 20), "Direction: " + m_Direction.eulerAngles.ToString());
-            }
-        }
-#endif
-#endif  // P56*/
     }
 }

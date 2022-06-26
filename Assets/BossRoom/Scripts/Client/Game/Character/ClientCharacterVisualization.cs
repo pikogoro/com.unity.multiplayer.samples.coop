@@ -299,18 +299,5 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
 
             return false;
         }
-
-/*#if P56
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        void OnGUI()
-        {
-            if (!m_NetState.IsNpc)
-            {
-                GUI.Label(new Rect(256, 80, 200, 20), "Position: " + m_PhysicsWrapper.Transform.position.ToString());
-                GUI.Label(new Rect(256, 100, 200, 20), "Direction: " + m_PhysicsWrapper.Transform.rotation.eulerAngles.ToString());
-            }
-        }
-#endif
-#endif  // P56*/
     }
 }

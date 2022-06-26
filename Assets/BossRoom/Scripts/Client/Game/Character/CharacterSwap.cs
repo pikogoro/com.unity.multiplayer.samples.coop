@@ -78,6 +78,13 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         [SerializeField]
         CharacterModelSet m_CharacterModel;
 
+#if P56
+        public GameObject BoneHead
+        {
+            get { return m_CharacterModel.head.transform.parent.parent.gameObject; }
+        }
+#endif  // P56
+
         /// <summary>
         /// Reference to our shared-characters' animator.
         /// Can be null, but if so, animator overrides are not supported!

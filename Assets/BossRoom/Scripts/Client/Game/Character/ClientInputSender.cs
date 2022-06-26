@@ -115,12 +115,17 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         Vector3 m_MouseDownPosition = Vector3.zero;
         CameraController m_CameraController;
         float m_LastPitch = 0f;
+        ActionMovement m_LastActionMovement;
 #if UNITY_ANDROID
         int m_TouchFingerId = -1;
 #endif
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        ActionMovement m_ActionMovement;
-#endif
+        float m_LastRotationY = 0f;
+
+        public float LastRotationY {
+            set { m_LastRotationY = value; }
+        }
+
+        NetworkStats m_NetworkStats = null;
 #endif //   P56
 
         public override void OnNetworkSpawn()
@@ -148,11 +153,20 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         void Start()
         {
             m_CameraController = GetComponentInChildren<CameraController>();
-            m_Joystick = GameObject.Find("Joystick").GetComponent<Joystick>();
+            m_CameraController.BoneHead = GetComponentInChildren<CharacterSwap>().BoneHead;
+
+            GameObject joystick = GameObject.Find("Joystick");
 #if UNITY_STANDALONE
             // Disable the joystick if standalone.
-            m_Joystick.enabled = false;
+            joystick.SetActive(false);
 #endif
+            m_Joystick = joystick.GetComponent<Joystick>();
+
+            // NetworkStats is used to get RTT.
+            m_NetworkStats = GetComponent<NetworkStats>();
+
+            // Save current rotation angle y for initial value.
+            m_LastRotationY = transform.rotation.eulerAngles.y;
         }
 #endif  // P56
 
@@ -243,7 +257,22 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                     }
 #else   // P56
                     ActionMovement movement = new ActionMovement();
-                    movement.Position = transform.position + transform.forward * m_Joystick.Vertical + transform.right * m_Joystick.Horizontal;
+                    Vector3 estimatedPosition;
+                    if (m_Joystick.Vertical == 0f && m_Joystick.Horizontal == 0f)
+                    {
+                        movement.Position = ActionMovement.PositionNull;
+                        estimatedPosition = transform.position;
+                    }
+                    else
+                    {
+                        float e = 1f;
+                        if (!IsHost)
+                        {
+                            e = m_NetworkStats.RTT / Time.fixedDeltaTime;
+                        }
+                        movement.Position = transform.position + transform.forward * m_Joystick.Vertical * e + transform.right * m_Joystick.Horizontal * e;
+                        estimatedPosition = movement.Position;
+                    }
 
                     // Change direction of character's facing during mouse dragging.
                     if (m_IsMouseDown)
@@ -273,45 +302,49 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                         {
                             pitch = (pitch > 0) ? 30f : -30f;
                         }
-                        movement.Direction = transform.rotation * Quaternion.Euler(pitch, yaw, 0f);
+                        movement.Rotation = Quaternion.Euler(pitch, m_LastRotationY + yaw, 0f);
                         m_LastPitch = pitch;
+
+                        // Save current rotaion y as last rotation y;
+                        m_LastRotationY = movement.Rotation.eulerAngles.y;
                     }
                     // Stop character's moving and rotation if no any input.
-                    else if (movement.Position == transform.position && !m_IsMouseDown)
+                    else if (ActionMovement.IsNull(movement.Position)  && !m_IsMouseDown)
                     {                        
-                        movement.Direction = default;
+                        movement.Rotation = ActionMovement.RotationNull;
                         m_MoveRequest = false;
                     }
                     // Anything else, not change direction of character's facing.
                     else
                     {
-                        movement.Direction = default;
+                        movement.Rotation = ActionMovement.RotationNull;
                     }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    m_ActionMovement = movement;
-#endif
+                    m_LastActionMovement = movement;
 
                     // verify point is indeed on navmesh surface
-                    if (NavMesh.SamplePosition(movement.Position,
+                    if (NavMesh.SamplePosition(estimatedPosition,
                             out var hit,
                             k_MaxNavMeshDistance,
                             NavMesh.AllAreas))
                     {
-                        movement.Position = hit.position;
+                        if (!ActionMovement.IsNull(movement.Position))
+                        {
+                            movement.Position = hit.position;
+                        }
                         m_NetworkCharacter.SendCharacterInputServerRpc(movement);
 
                         //Send our client only click request
                         ClientMoveEvent?.Invoke(hit.position);
 
-                        // Update character's pitch during drag.
+                        // Update character's pitch during mouse down.
                         if (m_IsMouseDown)
                         {
-                            m_CameraController.SetPitch(m_LastPitch);
+                            m_CameraController.RotationX = m_LastPitch;
                         }
                     }
 #endif  // P56
-                    }
+                }
             }
         }
 
@@ -319,8 +352,8 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         void OnGUI()
         {
-            GUI.Label(new Rect(256, 0, 200, 20), "Position: " + m_ActionMovement.Position.ToString());
-            GUI.Label(new Rect(256, 20, 200, 20), "Direction: " + m_ActionMovement.Direction.eulerAngles.ToString());
+            GUI.Label(new Rect(256, 0, 200, 20), "Position: " + m_LastActionMovement.Position.ToString());
+            GUI.Label(new Rect(256, 20, 200, 20), "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString());
         }
 #endif
 #endif  // P56
@@ -355,12 +388,15 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 }
 
                 int networkedHitIndex = -1;
-#if !P56
-                for (int i = 0; i < numHits; i++)
-#else   // P56
+#if P56
                 // Choose the closest object. 
-                for (int i = numHits - 1; i >= 0; i--)
+                if (numHits > 1)
+                {
+                    // sort hits by distance
+                    Array.Sort(k_CachedHit, 0, numHits, m_RaycastHitComparer);
+                }
 #endif  // P56
+                for (int i = 0; i < numHits; i++)
                 {
                     if (k_CachedHit[i].transform.GetComponentInParent<NetworkObject>())
                     {
@@ -389,7 +425,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 #if !P56
                 PopulateSkillRequest(k_CachedHit[0].point, actionType, ref data);
 #else   // P56
-                // Use the character's facing direction.
+                // Set direction to the character's facing direction if target is nothing.
                 PopulateSkillRequest(transform.position + transform.forward, actionType, ref data);
 #endif  // P56
 
@@ -641,6 +677,11 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 }
             }
 #endif
+            // Set current rotation y to the last rotation y during mouse is not down.
+            if (!m_IsMouseDown)
+            {
+                m_LastRotationY = transform.rotation.eulerAngles.y;
+            }
 #endif  // P56
         }
     }

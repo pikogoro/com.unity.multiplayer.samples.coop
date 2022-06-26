@@ -14,8 +14,19 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
 #if P56
         bool m_IsFPSView = true;
         Transform m_CamTransform = null;
+
         GameObject m_BoneHead = null;
-        float m_Pitch = 0f;
+        public GameObject BoneHead
+        {
+            set { m_BoneHead = value; }
+        }
+
+        float m_RotationX = 0f;
+
+        public float RotationX
+        {
+            set { m_RotationX = value; }
+        }
 
         // Variables for lerping of character's view.
         PositionLerper m_PositionLerper;
@@ -62,19 +73,10 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
 
             m_LerpedPosition = m_CamTransform.localPosition;
             m_LerpedRotation = m_CamTransform.localRotation;
-
-            // Hide character's head
-            m_BoneHead = GameObject.Find("Bone_Head");
-            m_BoneHead.SetActive(false);
 #endif  // P56
         }
 
 #if P56
-        public void SetPitch(float pitch)
-        {
-            m_Pitch = pitch;
-        }
-
         void FixedUpdate()
         {
             // Change character's view.
@@ -90,14 +92,20 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             if (m_IsFPSView)
             {
                 targetPosition = new Vector3(0f, 1.3f, 0.5f);
-                targetRotation = Quaternion.Euler(-m_Pitch, 0f, 0f);
-                m_BoneHead.SetActive(false);
+                targetRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
+                if (m_BoneHead != null && m_BoneHead.activeSelf)
+                {
+                    m_BoneHead.SetActive(false);
+                }
             }
             else
             {
-                targetPosition = new Vector3(0f, 3f - m_Pitch / 30f, 3f * Math.Abs(m_Pitch) / 30f - 5f);
-                targetRotation = Quaternion.Euler(15f - m_Pitch, 0f, 0f);
-                m_BoneHead.SetActive(true);
+                targetPosition = new Vector3(0f, 3f - m_RotationX / 30f, 3f * Math.Abs(m_RotationX) / 30f - 5f);
+                targetRotation = Quaternion.Euler(15f - m_RotationX, 0f, 0f);
+                if (m_BoneHead != null && !m_BoneHead.activeSelf)
+                {
+                    m_BoneHead.SetActive(true);
+                }
             }
 
             // Lerp of character's view.

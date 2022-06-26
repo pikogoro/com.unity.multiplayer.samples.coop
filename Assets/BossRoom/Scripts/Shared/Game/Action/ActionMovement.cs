@@ -11,18 +11,33 @@ namespace Unity.Multiplayer.Samples.BossRoom
     /// </summary>
     public struct ActionMovement : INetworkSerializable
     {
-        public Vector3 Position;           //position of character.
-        public Quaternion Direction;       //direction of character's facing.
+        public Vector3 Position;            //position of character.
+        public Quaternion Rotation;         //rotation of character's facing.
+
+        public static Vector3 PositionNull
+        {
+            get { return new Vector3(-10000f, 0f, 0f);  }
+        }
+
+        public static Quaternion RotationNull
+        {
+            get { return new Quaternion(0f, 0f, 0f, 0f);  }
+        }
 
         [Flags]
         private enum PackFlags
         {
             None = 0,
             HasPosition = 1,
-            HasDirection = 1 << 1
+            HasRotation = 1 << 1
         }
 
-        public static bool IsZero(Quaternion value)
+        public static bool IsNull(Vector3 value)
+        {
+            return (value.x != -10000f || value.y != 0f || value.z != 0f) ? false : true;
+        }
+
+        public static bool IsNull(Quaternion value)
         {
             return (value.x != 0f || value.y != 0f || value.z != 0f || value.w != 0f) ? false : true;
         }
@@ -34,9 +49,9 @@ namespace Unity.Multiplayer.Samples.BossRoom
             {
                 flags |= PackFlags.HasPosition;
             }
-            if (!IsZero(Direction))
+            if (!IsNull(Rotation))
             {
-                flags |= PackFlags.HasDirection;
+                flags |= PackFlags.HasRotation;
             }
 
             return flags;
@@ -56,9 +71,9 @@ namespace Unity.Multiplayer.Samples.BossRoom
             {
                 serializer.SerializeValue(ref Position);
             }
-            if ((flags & PackFlags.HasDirection) != 0)
+            if ((flags & PackFlags.HasRotation) != 0)
             {
-                serializer.SerializeValue(ref Direction);
+                serializer.SerializeValue(ref Rotation);
             }
         }
     }

@@ -45,6 +45,13 @@ namespace Unity.Multiplayer.Samples.BossRoom
         ExponentialMovingAverageCalculator m_BossRoomRTT = new ExponentialMovingAverageCalculator(0);
         ExponentialMovingAverageCalculator m_UtpRTT = new ExponentialMovingAverageCalculator(0);
 
+#if P56
+        public float RTT
+        {
+            get { return m_BossRoomRTT.Average; }
+        }
+#endif  // P56
+
         float m_LastPingTime;
         TextMeshProUGUI m_TextStat;
         TextMeshProUGUI m_TextHostType;
