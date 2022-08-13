@@ -48,13 +48,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Visible: 1
-  <MaxRefreshRate>k__BackingField: 30
+  m_MaxRefreshRate: 30
   <CustomStyleSheet>k__BackingField: {fileID: 0}
   <PanelSettingsOverride>k__BackingField: {fileID: 0}
   <Position>k__BackingField:
     <OverridePosition>k__BackingField: 1
-    <PositionLeftToRight>k__BackingField: 0
-    <PositionTopToBottom>k__BackingField: 0
+    m_PositionLeftToRight: 0
+    m_PositionTopToBottom: 0
   <Configuration>k__BackingField: {fileID: 11400000, guid: 8f1b4e3792d8446399527749cfb591a2, type: 2}
 --- !u!114 &2974514019541307266
 MonoBehaviour:
@@ -147,7 +147,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: To toggle RNSM, use the "S" key on desktop or 3 fingers on mobile
+  m_text: To toggle RNSM, use the "Q" key on desktop or 3 fingers on mobile
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -174,7 +174,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 70.5
+  m_fontSize: 21.8
   m_fontSizeBase: 21
   m_fontWeight: 400
   m_enableAutoSizing: 1

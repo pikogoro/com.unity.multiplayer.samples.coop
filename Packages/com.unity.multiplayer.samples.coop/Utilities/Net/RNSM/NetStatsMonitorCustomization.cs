@@ -17,7 +17,11 @@ namespace Unity.Multiplayer.Samples.Utilities
 
         void Update()
         {
+#if !P56
             if (Input.GetKeyUp(KeyCode.S) || Input.touchCount == k_NbTouchesToOpenWindow && AnyTouchDown())
+#else
+            if (Input.GetKeyUp(KeyCode.Q) || Input.touchCount == k_NbTouchesToOpenWindow && AnyTouchDown())
+#endif
             {
                 m_Monitor.enabled = !m_Monitor.enabled; // toggle
             }
