@@ -8,14 +8,22 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         public float Horizontal
         {
             get {
+#if OVR
+                float value = OVRInput.Get(OVRInput.RawAxis2D.LThumbstick).x;
+#else   // OVR
                 float value = Input.GetAxis("Horizontal");
+#endif  // OVR
                 return (value == 0) ? m_Input.x : value;
             }
         }
         public float Vertical
         {
             get {
+#if OVR
+                float value = OVRInput.Get(OVRInput.RawAxis2D.LThumbstick).y;
+#else   // OVR
                 float value = Input.GetAxis("Vertical");
+#endif  // OVR
                 return (value == 0) ? m_Input.y : value;
             }
         }

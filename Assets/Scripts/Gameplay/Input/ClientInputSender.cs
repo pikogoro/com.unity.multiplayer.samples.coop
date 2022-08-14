@@ -126,7 +126,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         }
 
         NetworkStats m_NetworkStats = null;
-#endif //   P56
+#endif  // P56
 
         public override void OnNetworkSpawn()
         {
@@ -217,12 +217,13 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             {
                 return;
             }
-#endif  // P56
 
             if (m_MoveRequest)
             {
-#if !P56
                 m_MoveRequest = false;
+#else   // P56
+            if (m_MoveRequest)
+            {
 #endif  // P56
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
@@ -674,6 +675,28 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                         m_IsMouseDown = false;
                         m_TouchFingerId = -1;
                     }
+                }
+            }
+#elif OVR
+            if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
+            {
+                // Right Index Trigger
+                if (OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger))
+                {
+                    RequestAction(CharacterData.Skill1, SkillTriggerStyle.Keyboard);
+                }
+                else if (OVRInput.GetUp(OVRInput.RawButton.RIndexTrigger))
+                {
+                    RequestAction(CharacterData.Skill1, SkillTriggerStyle.KeyboardRelease);
+                }
+                // Right Hand Trigger
+                else if (OVRInput.GetDown(OVRInput.RawButton.RHandTrigger))
+                {
+                    RequestAction(CharacterData.Skill2, SkillTriggerStyle.Keyboard);
+                }
+                else if (OVRInput.GetUp(OVRInput.RawButton.RHandTrigger))
+                {
+                    RequestAction(CharacterData.Skill2, SkillTriggerStyle.KeyboardRelease);
                 }
             }
 #endif
