@@ -216,6 +216,15 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         {
             if (m_UIStateActive && m_TransformToTrack)
             {
+#if P56
+                // Move UIState to behind of main camera if TransformToTrack is in back of player character.
+                if (m_Camera.transform.InverseTransformPoint(m_TransformToTrack.position).z <= 0)
+                {
+                    m_UIStateRectTransform.position = m_Camera.transform.position - new Vector3(0f, 0f, -1f);
+                    return;
+                }
+
+#endif  // P56
                 // set world position with world offset added
                 m_WorldPos.Set(m_TransformToTrack.position.x,
                     m_TransformToTrack.position.y + m_VerticalWorldOffset,
