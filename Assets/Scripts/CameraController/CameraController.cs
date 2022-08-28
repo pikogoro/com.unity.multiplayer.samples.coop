@@ -60,12 +60,13 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
                 m_MainCamera.m_Heading.m_Bias = 40f;
                 m_MainCamera.m_YAxis.Value = 0.5f;
             }
-#else   // P56
+#else   // !P56
             // Deactivate "CMCameraPrefab"
             GameObject cmCameraPrefab = GameObject.Find("CMCameraPrefab");
             cmCameraPrefab.SetActive(false);
 
             // Change main camera from 3rd person view to FPS view
+#if !OVR
             m_CamTransform = Camera.main.gameObject.transform;
             m_CamTransform.parent = transform;
             m_CamTransform.localPosition = new Vector3(0f, 1.3f, 0.5f);
@@ -73,7 +74,18 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
 
             m_LerpedPosition = m_CamTransform.localPosition;
             m_LerpedRotation = m_CamTransform.localRotation;
-#endif  // P56
+#else   // !OVR
+            m_CamTransform = GameObject.Find("OVRCameraRig").transform;
+
+            if (m_BoneHead != null)
+            {
+                m_BoneHead.SetActive(false);
+            }
+#endif  // !OVR
+
+            m_LerpedPosition = m_CamTransform.position;
+            m_LerpedRotation = m_CamTransform.rotation;
+#endif  // !P56
         }
 
 #if P56
@@ -89,8 +101,10 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             Vector3 targetPosition;
             Quaternion targetRotation;
 
+#if !OVR
             if (m_IsFPSView)
             {
+                // FPS
                 targetPosition = new Vector3(0f, 1.3f, 0.5f);
                 targetRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
                 if (m_BoneHead != null && m_BoneHead.activeSelf)
@@ -100,6 +114,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             }
             else
             {
+                // TPS
                 targetPosition = new Vector3(0f, 3f - m_RotationX / 30f, 3f * Math.Abs(m_RotationX) / 30f - 5f);
                 targetRotation = Quaternion.Euler(15f - m_RotationX, 0f, 0f);
                 if (m_BoneHead != null && !m_BoneHead.activeSelf)
@@ -114,7 +129,15 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
 
             m_CamTransform.localPosition = m_LerpedPosition;
             m_CamTransform.localRotation = m_LerpedRotation;
+#else   // !OVR
+            targetPosition = transform.position + transform.forward * 0.5f + new Vector3(0f, 1.3f, 0f);
+
+            // Lerp of character's view.
+            m_LerpedPosition = m_PositionLerper.LerpPosition(m_LerpedPosition, targetPosition);
+
+            m_CamTransform.position = m_LerpedPosition;
+#endif  // !OVR
         }
 #endif  // P56
+        }
     }
-}
