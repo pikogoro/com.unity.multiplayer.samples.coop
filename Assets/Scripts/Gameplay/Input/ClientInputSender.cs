@@ -127,7 +127,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
         NetworkStats m_NetworkStats = null;
 #if OVR
+        bool m_IsMoving = false;
         float m_BaseRotationY = 0f;
+        Transform m_RHandTransform = null;
 #endif  // OVR
 #endif  // P56
 
@@ -170,6 +172,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
             // Save current rotation angle y for initial value.
             m_LastRotationY = transform.rotation.eulerAngles.y;
+
+#if OVR
+            m_RHandTransform = GameObject.Find("RightHandAnchor").transform;
+            m_BaseRotationY = transform.rotation.eulerAngles.y;
+            m_CameraController.BaseRotationY = m_BaseRotationY;
+#endif  // OVR
         }
 #endif  // P56
 
@@ -224,14 +232,11 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             if (m_MoveRequest)
             {
                 m_MoveRequest = false;
-#else   // P56
-            if (m_MoveRequest)
-            {
-#endif  // P56
+
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
                     m_LastSentMove = Time.time;
-#if !P56
+
                     var ray = m_MainCamera.ScreenPointToRay(Input.mousePosition);
 
                     var groundHits = Physics.RaycastNonAlloc(ray,
@@ -259,7 +264,15 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                             ClientMoveEvent?.Invoke(hit.position);
                         }
                     }
+                }
+            }
 #else   // !P56
+            if (m_MoveRequest)
+            {
+                if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
+                {
+                    m_LastSentMove = Time.time;
+
                     ActionMovement movement = new ActionMovement();
                     Vector3 estimatedPosition;
                     if (m_Joystick.Vertical == 0f && m_Joystick.Horizontal == 0f)
@@ -267,7 +280,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                         movement.Position = ActionMovement.PositionNull;
                         estimatedPosition = transform.position;
 #if OVR
-                        m_IsMouseDown = false;
+                        m_IsMoving = false;
 #endif  // OVR
                     }
                     else
@@ -280,12 +293,22 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                         movement.Position = transform.position + transform.forward * m_Joystick.Vertical * e + transform.right * m_Joystick.Horizontal * e;
                         estimatedPosition = movement.Position;
 #if OVR
-                        m_IsMouseDown = true;
+                        m_IsMoving = true;
 #endif  // OVR
                     }
 
                     // Change direction of character's facing during mouse dragging.
+#if !OVR
                     if (m_IsMouseDown)
+#else   // !OVR
+                    // Rotation by controller stick.
+                    if (OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x != 0)
+                    {
+                        m_IsMoving = true;
+                    }
+
+                    if (m_IsMouseDown || m_IsMoving)
+#endif  // !OVR
                     {
 #if !OVR
 #if UNITY_STANDALONE
@@ -315,27 +338,32 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                             pitch = (pitch > 0) ? 30f : -30f;
                         }
                         movement.Rotation = Quaternion.Euler(pitch, m_LastRotationY + yaw, 0f);
-#else   // !OVR
-                        // WHY DON'T WORK!
-                        float baseRotationY = OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x * 15f;
-
-                        if (baseRotationY != 0f)
-                        {
-                            m_BaseRotationY += baseRotationY;
-                        }
-
-                        float yaw = OVRInput.GetLocalControllerRotation(OVRInput.Controller.LTouch).eulerAngles.y;
-                        float pitch = 0f;
-                        movement.Rotation = Quaternion.Euler(pitch, m_BaseRotationY + yaw, 0f);
-#endif  // !OVR
                         m_LastPitch = pitch;
 
                         // Save current rotaion y as last rotation y;
                         m_LastRotationY = movement.Rotation.eulerAngles.y;
+#else   // !OVR
+                        // Rotation by controller stick.
+                        float deltaRotationY = OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x * 5f;
+                        if (deltaRotationY != 0f)
+                        {
+                            m_BaseRotationY += deltaRotationY;
+                            m_CameraController.BaseRotationY = m_BaseRotationY;
+                        }
+
+                        // Rotation by controller direction.
+                        float yaw = m_RHandTransform.rotation.eulerAngles.y;
+                        movement.Rotation = Quaternion.Euler(0f, yaw, 0f);
+#endif  // !OVR
+
                     }
                     // Stop character's moving and rotation if no any input.
+#if !OVR
                     else if (ActionMovement.IsNull(movement.Position) && !m_IsMouseDown)
-                    {                        
+#else   // !OVR
+                    else if (ActionMovement.IsNull(movement.Position) && !m_IsMouseDown && !m_IsMoving)
+#endif  // !OVR
+                    {
                         movement.Rotation = ActionMovement.RotationNull;
                         m_MoveRequest = false;
                     }
@@ -362,32 +390,29 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                         //Send our client only click request
                         ClientMoveEvent?.Invoke(hit.position);
 
+#if !OVR
                         // Update character's pitch during mouse down.
                         if (m_IsMouseDown)
                         {
                             m_CameraController.RotationX = m_LastPitch;
                         }
+#endif  // !OVR
                     }
-#endif  // !P56
                 }
             }
-        }
+#endif  // !P56
+                    }
 
 #if P56
-//#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || OVR
         void OnGUI()
         {
-#if !OVR
-            GUI.Label(new Rect(256, 0, 200, 20), "Position: " + m_LastActionMovement.Position.ToString());
-            GUI.Label(new Rect(256, 20, 200, 20), "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString());
-#else   // !OVR
             string text =
                     "Position: " + m_LastActionMovement.Position.ToString() + "\n" +
                     "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString();
             DebugLogText.Log(text);
-#endif  // !OVR
         }
-//#endif
+#endif
 #endif  // P56
 
         /// <summary>
@@ -415,7 +440,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 int numHits = 0;
                 if (triggerStyle == SkillTriggerStyle.MouseClick)
                 {
+#if !OVR
                     var ray = m_MainCamera.ScreenPointToRay(Input.mousePosition);
+#else   // !OVR
+
+                    var ray = new Ray(m_RHandTransform.position, m_RHandTransform.forward);
+#endif  // !OVR
                     numHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_MouseInputRaycastDistance, m_ActionLayerMask);
                 }
 
@@ -596,6 +626,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
         void Update()
         {
+#if !OVR
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
                 RequestAction(CharacterData.Skill1, SkillTriggerStyle.Keyboard);
@@ -637,6 +668,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             {
                 RequestAction(ActionType.Emote4, SkillTriggerStyle.Keyboard);
             }
+#endif  // !OVR
 
 #if !P56
             if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
@@ -714,26 +746,59 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 }
             }
 #else   // !OVR
-            if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
+            // Right index trigger
+            if (OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger))
             {
-                // Right Index Trigger
-                if (OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger))
-                {
-                    RequestAction(ActionType.GeneralTarget, SkillTriggerStyle.MouseClick);
-                }
-                // Right Hand Trigger
-                if (OVRInput.GetDown(OVRInput.RawButton.RHandTrigger))
-                {
-                    RequestAction(CharacterData.Skill1, SkillTriggerStyle.MouseClick);
-                }
+                RequestAction(ActionType.GeneralTarget, SkillTriggerStyle.MouseClick);
+                m_IsMouseDown = true;
+            }
+            else if (OVRInput.GetUp(OVRInput.RawButton.RIndexTrigger))
+            {
+                m_IsMouseDown = false;
+            }
+            // Right hand trigger
+            if (OVRInput.GetDown(OVRInput.RawButton.RHandTrigger))
+            {
+                RequestAction(CharacterData.Skill1, SkillTriggerStyle.Keyboard);
+                m_IsMouseDown = true;
+            }
+            else if (OVRInput.GetUp(OVRInput.RawButton.RHandTrigger))
+            {
+                RequestAction(CharacterData.Skill1, SkillTriggerStyle.KeyboardRelease);
+                m_IsMouseDown = false;
+            }
+            // A button
+            if (OVRInput.GetDown(OVRInput.RawButton.A))
+            {
+                RequestAction(CharacterData.Skill2, SkillTriggerStyle.Keyboard);
+                m_IsMouseDown = true;
+            }
+            else if (OVRInput.GetUp(OVRInput.RawButton.A))
+            {
+                RequestAction(CharacterData.Skill2, SkillTriggerStyle.KeyboardRelease);
+                m_IsMouseDown = false;
+            }
+            // B button
+            if (OVRInput.GetDown(OVRInput.RawButton.B))
+            {
+                RequestAction(CharacterData.Skill3, SkillTriggerStyle.Keyboard);
+                m_IsMouseDown = true;
+            }
+            else if (OVRInput.GetUp(OVRInput.RawButton.B))
+            {
+                RequestAction(CharacterData.Skill3, SkillTriggerStyle.KeyboardRelease);
+                m_IsMouseDown = false;
             }
 #endif  // !OVR
 #endif
+
+#if !OVR
             // Set current rotation y to the last rotation y during mouse is not down.
             if (!m_IsMouseDown)
             {
                 m_LastRotationY = transform.rotation.eulerAngles.y;
             }
+#endif  // !OVR
 #endif  // !P56
         }
     }

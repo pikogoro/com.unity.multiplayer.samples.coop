@@ -34,6 +34,13 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
         const float k_LerpTime = 0.08f;
         Vector3 m_LerpedPosition;
         Quaternion m_LerpedRotation;
+#if OVR
+        float m_BaseRotationY = 180f;   // TBD
+        public float BaseRotationY
+        {
+            set { m_BaseRotationY = value; }
+        }
+#endif  // OVR
 #endif  // P56
 
         void Start()
@@ -81,16 +88,20 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             {
                 m_BoneHead.SetActive(false);
             }
-#endif  // !OVR
+
+            m_CamTransform.position = transform.position + new Vector3(0f, 1.3f, 0f); ;
+            m_CamTransform.rotation = Quaternion.Euler(0f, m_BaseRotationY, 0f);
 
             m_LerpedPosition = m_CamTransform.position;
             m_LerpedRotation = m_CamTransform.rotation;
+#endif  // !OVR
 #endif  // !P56
         }
 
 #if P56
         void FixedUpdate()
         {
+#if !OVR
             // Change character's view.
             if (Input.GetKeyDown(KeyCode.Backslash))
             {
@@ -101,7 +112,6 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             Vector3 targetPosition;
             Quaternion targetRotation;
 
-#if !OVR
             if (m_IsFPSView)
             {
                 // FPS
@@ -130,12 +140,19 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             m_CamTransform.localPosition = m_LerpedPosition;
             m_CamTransform.localRotation = m_LerpedRotation;
 #else   // !OVR
-            targetPosition = transform.position + transform.forward * 0.5f + new Vector3(0f, 1.3f, 0f);
+            // Update character's pitch.
+            Vector3 targetPosition;
+            Quaternion targetRotation;
+
+            targetPosition = transform.position + new Vector3(0f, 1.3f, 0f);
+            targetRotation = Quaternion.Euler(0f, m_BaseRotationY, 0f);
 
             // Lerp of character's view.
             m_LerpedPosition = m_PositionLerper.LerpPosition(m_LerpedPosition, targetPosition);
+            m_LerpedRotation = m_RotationLerper.LerpRotation(m_LerpedRotation, targetRotation);
 
             m_CamTransform.position = m_LerpedPosition;
+            m_CamTransform.rotation = m_LerpedRotation;
 #endif  // !OVR
         }
 #endif  // P56

@@ -8,7 +8,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
     {
         [SerializeField] private Transform m_Target = null;
         [SerializeField] private float m_UpOffset = -0.5f;      // default is -0.5m.
-        [SerializeField] private float m_ForwardOffset = 2f;    // default is 2m.
+        [SerializeField] private float m_ForwardOffset = 1f;    // default is 1m.
 
         void Start()
         {

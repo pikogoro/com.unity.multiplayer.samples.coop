@@ -33,17 +33,30 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
         // this is also the same height as the NavMesh baked in-game
         static readonly Plane k_Plane = new Plane(Vector3.up, 0f);
 
+#if OVR
+        Transform m_RHandTransform = null;
+#endif  // OVR
+
         void Start()
         {
             var radius = GameDataSource.Instance.ActionDataByType[m_ActionType].Radius;
             transform.localScale = new Vector3(radius * 2, radius * 2, radius * 2);
             m_Camera = Camera.main;
+#if OVR
+            m_RHandTransform = GameObject.Find("RightHandAnchor").transform;
+#endif  // OVR
         }
 
-        void Update()
+            void Update()
         {
+#if !OVR
             if (PlaneRaycast(k_Plane, m_Camera.ScreenPointToRay(Input.mousePosition), out Vector3 pointOnPlane) &&
                 NavMesh.SamplePosition(pointOnPlane, out m_NavMeshHit, 2f, NavMesh.AllAreas))
+#else   // !OVR
+            var ray = new Ray(m_RHandTransform.position, m_RHandTransform.forward);
+            if (PlaneRaycast(k_Plane, ray, out Vector3 pointOnPlane) &&
+                NavMesh.SamplePosition(pointOnPlane, out m_NavMeshHit, 2f, NavMesh.AllAreas))
+#endif  // !OVR
             {
                 transform.position = m_NavMeshHit.position;
             }
@@ -54,12 +67,20 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             m_OutOfRangeVisualization.SetActive(!isInRange);
 
             // wait for the player to click down and then release the mouse button before actually taking the input
+#if !OVR
             if (Input.GetMouseButtonDown(0))
+#else   // !OVR
+            if (OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger))
+#endif  // !OVR
             {
                 m_ReceivedMouseDownEvent = true;
             }
 
+#if !OVR
             if (Input.GetMouseButtonUp(0) && m_ReceivedMouseDownEvent)
+#else   // !OVR
+            if (OVRInput.GetUp(OVRInput.RawButton.RIndexTrigger) && m_ReceivedMouseDownEvent)
+#endif  // !OVR
             {
                 if (isInRange)
                 {
