@@ -34,6 +34,13 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
         const float k_LerpTime = 0.08f;
         Vector3 m_LerpedPosition;
         Quaternion m_LerpedRotation;
+#if OVR
+        float m_BaseRotationY = 180f;   // TBD
+        public float BaseRotationY
+        {
+            set { m_BaseRotationY = value; }
+        }
+#endif  // OVR
 #endif  // P56
 
         void Start()
@@ -60,12 +67,13 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
                 m_MainCamera.m_Heading.m_Bias = 40f;
                 m_MainCamera.m_YAxis.Value = 0.5f;
             }
-#else   // P56
+#else   // !P56
             // Deactivate "CMCameraPrefab"
             GameObject cmCameraPrefab = GameObject.Find("CMCameraPrefab");
             cmCameraPrefab.SetActive(false);
 
             // Change main camera from 3rd person view to FPS view
+#if !OVR
             m_CamTransform = Camera.main.gameObject.transform;
             m_CamTransform.parent = transform;
             m_CamTransform.localPosition = new Vector3(0f, 1.3f, 0.5f);
@@ -73,12 +81,27 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
 
             m_LerpedPosition = m_CamTransform.localPosition;
             m_LerpedRotation = m_CamTransform.localRotation;
-#endif  // P56
+#else   // !OVR
+            m_CamTransform = GameObject.Find("OVRCameraRig").transform;
+
+            if (m_BoneHead != null)
+            {
+                m_BoneHead.SetActive(false);
+            }
+
+            m_CamTransform.position = transform.position + new Vector3(0f, 1.3f, 0f); ;
+            m_CamTransform.rotation = Quaternion.Euler(0f, m_BaseRotationY, 0f);
+
+            m_LerpedPosition = m_CamTransform.position;
+            m_LerpedRotation = m_CamTransform.rotation;
+#endif  // !OVR
+#endif  // !P56
         }
 
 #if P56
         void FixedUpdate()
         {
+#if !OVR
             // Change character's view.
             if (Input.GetKeyDown(KeyCode.Backslash))
             {
@@ -91,6 +114,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
 
             if (m_IsFPSView)
             {
+                // FPS
                 targetPosition = new Vector3(0f, 1.3f, 0.5f);
                 targetRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
                 if (m_BoneHead != null && m_BoneHead.activeSelf)
@@ -100,6 +124,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             }
             else
             {
+                // TPS
                 targetPosition = new Vector3(0f, 3f - m_RotationX / 30f, 3f * Math.Abs(m_RotationX) / 30f - 5f);
                 targetRotation = Quaternion.Euler(15f - m_RotationX, 0f, 0f);
                 if (m_BoneHead != null && !m_BoneHead.activeSelf)
@@ -114,7 +139,22 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
 
             m_CamTransform.localPosition = m_LerpedPosition;
             m_CamTransform.localRotation = m_LerpedRotation;
+#else   // !OVR
+            // Update character's pitch.
+            Vector3 targetPosition;
+            Quaternion targetRotation;
+
+            targetPosition = transform.position + new Vector3(0f, 1.3f, 0f);
+            targetRotation = Quaternion.Euler(0f, m_BaseRotationY, 0f);
+
+            // Lerp of character's view.
+            m_LerpedPosition = m_PositionLerper.LerpPosition(m_LerpedPosition, targetPosition);
+            m_LerpedRotation = m_RotationLerper.LerpRotation(m_LerpedRotation, targetRotation);
+
+            m_CamTransform.position = m_LerpedPosition;
+            m_CamTransform.rotation = m_LerpedRotation;
+#endif  // !OVR
         }
 #endif  // P56
+        }
     }
-}
