@@ -1,13 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Multiplayer.Samples.BossRoom.Visual;
 
 namespace Unity.Multiplayer.Samples.BossRoom.Client
 {
-    public class TrackCanvasController : MonoBehaviour
+    public class TrackingCanvasController : MonoBehaviour
     {
         [SerializeField] private Transform m_Target = null;
-        [SerializeField] private float m_UpOffset = -0.5f;      // default is -0.5m.
+        [SerializeField] private float m_UpOffset = 0f;         // default is -0.5m.
         [SerializeField] private float m_ForwardOffset = 1f;    // default is 1m.
 
         void Start()
