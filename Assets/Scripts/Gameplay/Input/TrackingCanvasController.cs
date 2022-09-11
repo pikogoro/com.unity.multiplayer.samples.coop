@@ -21,9 +21,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
         void LateUpdate()
         {
-            transform.position = m_Target.position + m_Target.up * m_UpOffset + m_Target.forward * m_ForwardOffset;
-            transform.LookAt(m_Target);
-            transform.Rotate(0f, 180f, 0f);
+            if (m_Target != null)
+            {
+                transform.position = m_Target.position + m_Target.up * m_UpOffset + m_Target.forward * m_ForwardOffset;
+                transform.LookAt(m_Target);
+                transform.Rotate(0f, 180f, 0f);
+            }
         }
     }
 }
