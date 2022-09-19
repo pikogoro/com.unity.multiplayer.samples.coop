@@ -71,6 +71,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         // used to compute world position based on target and offsets
         Vector3 m_WorldPos;
 
+#if OVR
+        readonly RaycastHit[] k_RaycastHit = new RaycastHit[4];
+        const float k_RaycastDistance = 2f;
+        Transform m_CamTransform;
+#endif  // OVR
+
         public override void OnNetworkSpawn()
         {
             if (!NetworkManager.Singleton.IsClient)
@@ -85,6 +91,10 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 m_Camera = cameraGameObject.GetComponent<Camera>();
             }
             Assert.IsNotNull(m_Camera);
+
+#if OVR
+            m_CamTransform = m_Camera.transform;
+#endif  // OVR
 
             var canvasGameObject = GameObject.FindWithTag("GameCanvas");
             if (canvasGameObject)
@@ -216,6 +226,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         {
             if (m_UIStateActive && m_TransformToTrack)
             {
+#if !OVR
 #if P56
                 // Move UIState to behind of main camera if TransformToTrack is in back of player character.
                 if (m_Camera.transform.InverseTransformPoint(m_TransformToTrack.position).z <= 0)
@@ -231,6 +242,22 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                     m_TransformToTrack.position.z);
 
                 m_UIStateRectTransform.position = m_Camera.WorldToScreenPoint(m_WorldPos) + m_VerticalOffset;
+#else   // !OVR
+                // Project UI in front of main camera. 
+                Plane plane = new Plane(-m_CamTransform.forward, m_CamTransform.position + m_CamTransform.forward * 1f);
+                Ray ray = new Ray(m_CamTransform.position, (m_TransformToTrack.position + new Vector3(0f, 2.2f, 0f)) - m_CamTransform.position);
+                bool isHit = plane.Raycast(ray, out float enter);
+                if (isHit)
+                {
+                    m_WorldPos = ray.GetPoint(enter);
+                }
+                else
+                {
+                    // Move UI object to behind of main camera.
+                    m_WorldPos = m_CamTransform.position + m_CamTransform.forward * -1f;
+                }
+                m_UIStateRectTransform.position = m_WorldPos;
+#endif  // !OVR
             }
         }
 

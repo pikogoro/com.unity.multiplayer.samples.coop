@@ -61,6 +61,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
                 popup.SetupPopupPanel(titleText, mainText, closeableByUser);
             }
 
+#if OVR
+            // [Bug fix] Null reference exception of Canvas.worldCamera occurs on Oculus.
+            Canvas canvas = m_Canvas.GetComponent<Canvas>();
+            canvas.worldCamera = Camera.main;
+#endif  // OVR
+
             return popup;
         }
 

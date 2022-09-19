@@ -130,6 +130,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         bool m_IsMoving = false;
         float m_BaseRotationY = 0f;
         Transform m_RHandTransform = null;
+        Transform m_LHandTransform = null;
 #endif  // OVR
 #endif  // P56
 
@@ -175,6 +176,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
 #if OVR
             m_RHandTransform = GameObject.Find("RightHandAnchor").transform;
+            m_LHandTransform = GameObject.Find("LeftHandAnchor").transform;
             m_BaseRotationY = transform.rotation.eulerAngles.y;
             m_CameraController.BaseRotationY = m_BaseRotationY;
 #endif  // OVR
@@ -301,8 +303,8 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 #if !OVR
                     if (m_IsMouseDown)
 #else   // !OVR
-                    // Rotation by controller stick.
-                    if (OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x != 0)
+                    // Rotation by right controller stick.
+                    if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
                     {
                         m_IsMoving = true;
                     }
@@ -343,16 +345,25 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                         // Save current rotaion y as last rotation y;
                         m_LastRotationY = movement.Rotation.eulerAngles.y;
 #else   // !OVR
-                        // Rotation by controller stick.
-                        float deltaRotationY = OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x * 5f;
+                        // Rotation by right controller stick.
+                        float deltaRotationY = 0f;
+                        if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight))
+                        {
+                            deltaRotationY = 30f;
+                        }
+                        else if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
+                        {
+                            deltaRotationY = -30f;
+                        }
+
                         if (deltaRotationY != 0f)
                         {
                             m_BaseRotationY += deltaRotationY;
                             m_CameraController.BaseRotationY = m_BaseRotationY;
                         }
 
-                        // Rotation by controller direction.
-                        float yaw = m_RHandTransform.rotation.eulerAngles.y;
+                        // Rotation by left controller direction.
+                        float yaw = m_LHandTransform.rotation.eulerAngles.y;
                         movement.Rotation = Quaternion.Euler(0f, yaw, 0f);
 #endif  // !OVR
 
@@ -691,11 +702,13 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 }
             }
 #else   // !P56
-            // Start moving by input from Joystick.
 #if !OVR
+            // Start moving by input from Joystick.
             if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f)
 #else   // !OVR
-            if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f || OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x != 0f)
+            // Start moving by input from Joystick or right controller stick.
+            if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f ||
+                OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
 #endif  // !OVR
             {
                 m_MoveRequest = true;
