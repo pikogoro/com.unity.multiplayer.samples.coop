@@ -90,10 +90,8 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
             }
 
             m_CamTransform.position = transform.position + new Vector3(0f, 1.3f, 0f); ;
-            m_CamTransform.rotation = Quaternion.Euler(0f, m_BaseRotationY, 0f);
 
             m_LerpedPosition = m_CamTransform.position;
-            m_LerpedRotation = m_CamTransform.rotation;
 #endif  // !OVR
 #endif  // !P56
         }
@@ -142,17 +140,16 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
 #else   // !OVR
             // Update character's pitch.
             Vector3 targetPosition;
-            Quaternion targetRotation;
 
             targetPosition = transform.position + new Vector3(0f, 1.3f, 0f);
-            targetRotation = Quaternion.Euler(0f, m_BaseRotationY, 0f);
 
             // Lerp of character's view.
             m_LerpedPosition = m_PositionLerper.LerpPosition(m_LerpedPosition, targetPosition);
-            m_LerpedRotation = m_RotationLerper.LerpRotation(m_LerpedRotation, targetRotation);
 
             m_CamTransform.position = m_LerpedPosition;
-            m_CamTransform.rotation = m_LerpedRotation;
+
+            // Rotation method for mesures to "virtual reality sickness".
+            m_CamTransform.rotation = Quaternion.Euler(0f, m_BaseRotationY, 0f);
 #endif  // !OVR
         }
 #endif  // P56
