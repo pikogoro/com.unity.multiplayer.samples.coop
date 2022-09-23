@@ -451,12 +451,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 int numHits = 0;
                 if (triggerStyle == SkillTriggerStyle.MouseClick)
                 {
-#if !OVR
+#if P56 && !OVR
                     var ray = m_MainCamera.ScreenPointToRay(Input.mousePosition);
-#else   // !OVR
+#else   // P56 && !OVR
 
                     var ray = new Ray(m_RHandTransform.position, m_RHandTransform.forward);
-#endif  // !OVR
+#endif  // P56 && !OVR
                     numHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_MouseInputRaycastDistance, m_ActionLayerMask);
                 }
 
@@ -637,7 +637,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
         void Update()
         {
-#if !OVR
+#if P56 && !OVR
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
                 RequestAction(CharacterData.Skill1, SkillTriggerStyle.Keyboard);
@@ -679,7 +679,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             {
                 RequestAction(ActionType.Emote4, SkillTriggerStyle.Keyboard);
             }
-#endif  // !OVR
+#endif  // P56 && !OVR
 
 #if !P56
             if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
@@ -803,7 +803,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 m_IsMouseDown = false;
             }
 #endif  // !OVR
-#endif
+#endif  // UNITY_STANDALONE || UNITY_ANDROID
 
 #if !OVR
             // Set current rotation y to the last rotation y during mouse is not down.
