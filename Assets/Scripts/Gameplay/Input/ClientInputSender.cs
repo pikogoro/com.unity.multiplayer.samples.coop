@@ -499,7 +499,7 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 PopulateSkillRequest(k_CachedHit[0].point, actionType, ref data);
 #else   // !P56
                 // Set direction to the character's facing direction if target is nothing.
-                PopulateSkillRequest(transform.position + transform.forward, actionType, ref data);
+                PopulateSkillRequest(transform.position + transform.forward, actionType, ref data, false);
 #endif  // !P56
 
                 SendInput(data);
@@ -561,7 +561,11 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             // record our target in case this action uses that info (non-targeted attacks will ignore this)
             resultData.ActionTypeEnum = actionType;
             resultData.TargetIds = new ulong[] { targetNetObj.NetworkObjectId };
+#if !P56
             PopulateSkillRequest(targetHitPoint, actionType, ref resultData);
+#else   // !P56
+            PopulateSkillRequest(targetHitPoint, actionType, ref resultData, true);
+#endif  // !P56
             return true;
         }
 
@@ -571,7 +575,11 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         /// <param name="hitPoint">The point in world space where the click ray hit the target.</param>
         /// <param name="action">The action to perform (will be stamped on the resultData)</param>
         /// <param name="resultData">The ActionRequestData to be filled out with additional information.</param>
+#if !P56
         void PopulateSkillRequest(Vector3 hitPoint, ActionType action, ref ActionRequestData resultData)
+#else   // !P56
+        void PopulateSkillRequest(Vector3 hitPoint, ActionType action, ref ActionRequestData resultData, bool existsTarget)
+#endif  // !P56
         {
             resultData.ActionTypeEnum = action;
             var actionInfo = GameDataSource.Instance.ActionDataByType[action];
@@ -581,14 +589,27 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
             // figure out the Direction in case we want to send it
             Vector3 offset = hitPoint - m_PhysicsWrapper.Transform.position;
+#if !P56
             offset.y = 0;
+#endif  // !P56
             Vector3 direction = offset.normalized;
 
             switch (actionInfo.Logic)
             {
                 //for projectile logic, infer the direction from the click position.
                 case ActionLogic.LaunchProjectile:
+#if !P56
                     resultData.Direction = direction;
+#else   // !P56
+                    if (existsTarget)
+                    {
+                        resultData.Direction = direction;
+                    }
+                    else
+                    {
+                        resultData.Direction = m_MainCamera.transform.forward.normalized;
+                    }
+#endif  // !P56
                     resultData.ShouldClose = false; //why? Because you could be lining up a shot, hoping to hit other people between you and your target. Moving you would be quite invasive.
                     return;
                 case ActionLogic.Melee:

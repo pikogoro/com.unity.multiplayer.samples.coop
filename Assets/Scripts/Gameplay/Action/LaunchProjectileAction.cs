@@ -10,6 +10,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
     public class LaunchProjectileAction : Action
     {
         private bool m_Launched = false;
+#if P56
+        protected Vector3 m_Direction;
+#endif  // P56
 
         public LaunchProjectileAction(ServerCharacter parent, ref ActionRequestData data) : base(parent, ref data) { }
 
@@ -17,6 +20,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
         {
             //snap to face the direction we're firing, and then broadcast the animation, which we do immediately.
             m_Parent.physicsWrapper.Transform.forward = Data.Direction;
+#if P56
+            m_Direction = Data.Direction;
+#endif  // P56
 
             m_Parent.serverAnimationHandler.NetworkAnimator.SetTrigger(Description.Anim);
             m_Parent.NetState.RecvDoActionClientRPC(Data);
@@ -64,7 +70,11 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
 
                 NetworkObject no = NetworkObjectPool.Singleton.GetNetworkObject(projectileInfo.ProjectilePrefab, projectileInfo.ProjectilePrefab.transform.position, projectileInfo.ProjectilePrefab.transform.rotation);
                 // point the projectile the same way we're facing
+#if !P56
                 no.transform.forward = m_Parent.physicsWrapper.Transform.forward;
+#else   // !P56
+                no.transform.forward = m_Direction;
+#endif  // !P56
 
                 //this way, you just need to "place" the arrow by moving it in the prefab, and that will control
                 //where it appears next to the player.

@@ -48,6 +48,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Server
                 }
             }
 
+#if P56
+            base.m_Direction = Camera.main.transform.forward;
+#endif  // P56
             m_Parent.serverAnimationHandler.NetworkAnimator.SetTrigger(Description.Anim);
 
             // start the "charging up" ActionFX
