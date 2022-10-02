@@ -1,0 +1,98 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &2689785740716200554
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_RootOrder
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3604750354234589793, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4129086131359553755, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_Name
+      value: PlayerGraphics_Archer_UnityChan_CharacterSelect
+      objectReference: {fileID: 0}
+    - target: {fileID: 7101557102254838185, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_AudioSources.Array.data[0]
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 7101557102254838185, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+      propertyPath: m_AudioSources.Array.data[1]
+      value: 
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 188023154515206429, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+    - {fileID: 8949934629491214250, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+    - {fileID: 8875638061241025922, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+    - {fileID: 5176931945303974716, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+    - {fileID: 2721683959646698288, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+    - {fileID: 7101557102254838185, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+  m_SourcePrefab: {fileID: 100100000, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+--- !u!1 &2024785936711240369 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4129086131359553755, guid: 2aa0ced5c16d0dc4bbf8a09e787da833, type: 3}
+  m_PrefabInstance: {fileID: 2689785740716200554}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &1918297595250278081
+Animator:
+  serializedVersion: 4
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2024785936711240369}
+  m_Enabled: 1
+  m_Avatar: {fileID: 9000000, guid: 97cd899cd9369b2468f25810d390aed0, type: 3}
+  m_Controller: {fileID: 22100000, guid: 04fd2cb587b11aa42baf262df1b24615, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorControllerStateOnDisable: 0

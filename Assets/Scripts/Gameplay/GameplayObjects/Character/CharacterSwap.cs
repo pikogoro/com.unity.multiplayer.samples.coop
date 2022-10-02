@@ -28,6 +28,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             public Visual.AnimatorTriggeredSpecialFX specialFx; // should be a component on the same GameObject as the Animator!
             public AnimatorOverrideController animatorOverrides; // references a separate stand-alone object in the project
             private List<Renderer> m_CachedRenderers;
+#if P56
+            public UnityEngine.Avatar avatarOverrides; // reference an humanoid avatar
+#endif  // P56
 
             public void SetFullActive(bool isActive)
             {
@@ -154,6 +157,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 // plug in the correct animator override... or plug the original non - overridden version back in!
                 if (m_CharacterModel.animatorOverrides)
                 {
+#if P56
+                    m_Animator.avatar = m_CharacterModel.avatarOverrides;
+#endif  // P56
                     m_Animator.runtimeAnimatorController = m_CharacterModel.animatorOverrides;
                 }
                 else
