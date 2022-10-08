@@ -1,9 +1,14 @@
+using System;
 using System.Collections;
+using Unity.BossRoom.Gameplay.GameplayObjects;
+using Unity.BossRoom.Gameplay.GameplayObjects.Character;
+using Unity.BossRoom.Infrastructure;
+using Unity.BossRoom.Utils;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace Unity.Multiplayer.Samples.BossRoom.Client
+namespace Unity.BossRoom.Gameplay.UI
 {
     /// <summary>
     /// Class designed to only run on a client. Add this to a world-space prefab to display health or name on UI.
@@ -32,13 +37,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         bool m_UIStateActive;
 
         [SerializeField]
-        NetworkNameState m_NetworkNameState;
-
-        [SerializeField]
         NetworkHealthState m_NetworkHealthState;
 
         [SerializeField]
-        ClientCharacter m_ClientCharacter;
+        NetworkNameState m_NetworkNameState;
+
+        ServerCharacter m_ServerCharacter;
 
         ClientAvatarGuidHandler m_ClientAvatarGuidHandler;
 
@@ -76,6 +80,11 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         const float k_RaycastDistance = 2f;
         Transform m_CamTransform;
 #endif  // P56 && OVR
+
+        void Awake()
+        {
+            m_ServerCharacter = GetComponent<ServerCharacter>();
+        }
 
         public override void OnNetworkSpawn()
         {
@@ -116,9 +125,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             {
                 m_BaseHP = m_NetworkAvatarGuidState.RegisteredAvatar.CharacterClass.BaseHP;
 
-                if (m_ClientCharacter.ChildVizObject)
+                if (m_ServerCharacter.clientCharacter)
                 {
-                    TrackGraphicsTransform(m_ClientCharacter.ChildVizObject.gameObject);
+                    TrackGraphicsTransform(m_ServerCharacter.clientCharacter.gameObject);
                 }
                 else
                 {
@@ -127,8 +136,8 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
                 if (m_DisplayHealth)
                 {
-                    m_NetworkHealthState.hitPointsReplenished += DisplayUIHealth;
-                    m_NetworkHealthState.hitPointsDepleted += RemoveUIHealth;
+                    m_NetworkHealthState.HitPointsReplenished += DisplayUIHealth;
+                    m_NetworkHealthState.HitPointsDepleted += RemoveUIHealth;
                 }
             }
 
@@ -152,8 +161,8 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
             if (m_NetworkHealthState != null)
             {
-                m_NetworkHealthState.hitPointsReplenished -= DisplayUIHealth;
-                m_NetworkHealthState.hitPointsDepleted -= RemoveUIHealth;
+                m_NetworkHealthState.HitPointsReplenished -= DisplayUIHealth;
+                m_NetworkHealthState.HitPointsDepleted -= RemoveUIHealth;
             }
 
             if (m_ClientAvatarGuidHandler)
