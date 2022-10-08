@@ -1,9 +1,8 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Unity.Multiplayer.Samples.BossRoom.Visual
+namespace Unity.BossRoom.Gameplay.UI
 {
     /// <summary>
     /// Handles the display of Popup messages. Instantiates and reuses popup panel prefabs to allow displaying multiple
@@ -61,11 +60,11 @@ namespace Unity.Multiplayer.Samples.BossRoom.Visual
                 popup.SetupPopupPanel(titleText, mainText, closeableByUser);
             }
 
-#if OVR
+#if P56 && OVR
             // [Bug fix] Null reference exception of Canvas.worldCamera occurs on Oculus.
             Canvas canvas = m_Canvas.GetComponent<Canvas>();
             canvas.worldCamera = Camera.main;
-#endif  // OVR
+#endif  // P56 && OVR
 
             return popup;
         }

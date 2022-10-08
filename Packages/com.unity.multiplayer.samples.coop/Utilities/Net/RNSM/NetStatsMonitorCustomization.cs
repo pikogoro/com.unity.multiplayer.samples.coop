@@ -12,7 +12,7 @@ namespace Unity.Multiplayer.Samples.Utilities
 
         void Start()
         {
-            m_Monitor.enabled = false;
+            m_Monitor.Visible = false;
         }
 
         void Update()
@@ -23,7 +23,8 @@ namespace Unity.Multiplayer.Samples.Utilities
             if (Input.GetKeyUp(KeyCode.Q) || Input.touchCount == k_NbTouchesToOpenWindow && AnyTouchDown())
 #endif
             {
-                m_Monitor.enabled = !m_Monitor.enabled; // toggle
+                m_Monitor.Visible = !m_Monitor.Visible; // toggle. Using "Visible" instead of "Enabled" to make sure RNSM keeps updating in the background
+                // while not visible. This way, when bring it back visible, we can make sure values are up to date.
             }
         }
 

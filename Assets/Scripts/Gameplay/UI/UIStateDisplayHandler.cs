@@ -1,9 +1,14 @@
+using System;
 using System.Collections;
+using Unity.BossRoom.Gameplay.GameplayObjects;
+using Unity.BossRoom.Gameplay.GameplayObjects.Character;
+using Unity.BossRoom.Infrastructure;
+using Unity.BossRoom.Utils;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace Unity.Multiplayer.Samples.BossRoom.Client
+namespace Unity.BossRoom.Gameplay.UI
 {
     /// <summary>
     /// Class designed to only run on a client. Add this to a world-space prefab to display health or name on UI.
@@ -32,13 +37,12 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         bool m_UIStateActive;
 
         [SerializeField]
-        NetworkNameState m_NetworkNameState;
-
-        [SerializeField]
         NetworkHealthState m_NetworkHealthState;
 
         [SerializeField]
-        ClientCharacter m_ClientCharacter;
+        NetworkNameState m_NetworkNameState;
+
+        ServerCharacter m_ServerCharacter;
 
         ClientAvatarGuidHandler m_ClientAvatarGuidHandler;
 
@@ -71,11 +75,16 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         // used to compute world position based on target and offsets
         Vector3 m_WorldPos;
 
-#if OVR
+#if P56 && OVR
         readonly RaycastHit[] k_RaycastHit = new RaycastHit[4];
         const float k_RaycastDistance = 2f;
         Transform m_CamTransform;
-#endif  // OVR
+#endif  // P56 && OVR
+
+        void Awake()
+        {
+            m_ServerCharacter = GetComponent<ServerCharacter>();
+        }
 
         public override void OnNetworkSpawn()
         {
@@ -92,9 +101,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             }
             Assert.IsNotNull(m_Camera);
 
-#if OVR
+#if P56 && OVR
             m_CamTransform = m_Camera.transform;
-#endif  // OVR
+#endif  // P56 && OVR
 
             var canvasGameObject = GameObject.FindWithTag("GameCanvas");
             if (canvasGameObject)
@@ -116,9 +125,9 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
             {
                 m_BaseHP = m_NetworkAvatarGuidState.RegisteredAvatar.CharacterClass.BaseHP;
 
-                if (m_ClientCharacter.ChildVizObject)
+                if (m_ServerCharacter.clientCharacter)
                 {
-                    TrackGraphicsTransform(m_ClientCharacter.ChildVizObject.gameObject);
+                    TrackGraphicsTransform(m_ServerCharacter.clientCharacter.gameObject);
                 }
                 else
                 {
@@ -127,8 +136,8 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
                 if (m_DisplayHealth)
                 {
-                    m_NetworkHealthState.hitPointsReplenished += DisplayUIHealth;
-                    m_NetworkHealthState.hitPointsDepleted += RemoveUIHealth;
+                    m_NetworkHealthState.HitPointsReplenished += DisplayUIHealth;
+                    m_NetworkHealthState.HitPointsDepleted += RemoveUIHealth;
                 }
             }
 
@@ -152,8 +161,8 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 
             if (m_NetworkHealthState != null)
             {
-                m_NetworkHealthState.hitPointsReplenished -= DisplayUIHealth;
-                m_NetworkHealthState.hitPointsDepleted -= RemoveUIHealth;
+                m_NetworkHealthState.HitPointsReplenished -= DisplayUIHealth;
+                m_NetworkHealthState.HitPointsDepleted -= RemoveUIHealth;
             }
 
             if (m_ClientAvatarGuidHandler)
@@ -226,22 +235,14 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
         {
             if (m_UIStateActive && m_TransformToTrack)
             {
-#if !OVR
 #if P56
+#if !OVR
                 // Move UIState to behind of main camera if TransformToTrack is in back of player character.
                 if (m_Camera.transform.InverseTransformPoint(m_TransformToTrack.position).z <= 0)
                 {
                     m_UIStateRectTransform.position = m_Camera.transform.position - new Vector3(0f, 0f, -1f);
                     return;
                 }
-
-#endif  // P56
-                // set world position with world offset added
-                m_WorldPos.Set(m_TransformToTrack.position.x,
-                    m_TransformToTrack.position.y + m_VerticalWorldOffset,
-                    m_TransformToTrack.position.z);
-
-                m_UIStateRectTransform.position = m_Camera.WorldToScreenPoint(m_WorldPos) + m_VerticalOffset;
 #else   // !OVR
                 // Project UI in front of main camera. 
                 Plane plane = new Plane(-m_CamTransform.forward, m_CamTransform.position + m_CamTransform.forward * 1f);
@@ -258,6 +259,14 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
                 }
                 m_UIStateRectTransform.position = m_WorldPos;
 #endif  // !OVR
+#else  // P56
+                // set world position with world offset added
+                m_WorldPos.Set(m_TransformToTrack.position.x,
+                    m_TransformToTrack.position.y + m_VerticalWorldOffset,
+                    m_TransformToTrack.position.z);
+
+                m_UIStateRectTransform.position = m_Camera.WorldToScreenPoint(m_WorldPos) + m_VerticalOffset;
+#endif  // P56
             }
         }
 
