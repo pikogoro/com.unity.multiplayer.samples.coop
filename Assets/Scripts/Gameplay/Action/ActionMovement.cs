@@ -2,7 +2,8 @@ using System;
 using Unity.Netcode;
 using UnityEngine;
 
-namespace Unity.Multiplayer.Samples.BossRoom
+//namespace Unity.Multiplayer.Samples.BossRoom
+namespace Unity.BossRoom.Gameplay.Actions
 {
     /// <summary>
     /// Comprehensive class that contains information needed to play back character's movement on the server. This is what gets sent client->server when

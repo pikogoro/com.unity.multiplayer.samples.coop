@@ -161,7 +161,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 if (m_CharacterModel.animatorOverrides)
                 {
 #if P56
-                    m_Animator.avatar = m_CharacterModel.avatarOverrides;
+                    if (m_CharacterModel.avatarOverrides)
+                    {
+                        m_Animator.avatar = m_CharacterModel.avatarOverrides;
+                    }
 #endif  // P56
                     m_Animator.runtimeAnimatorController = m_CharacterModel.animatorOverrides;
                 }

@@ -5,6 +5,9 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Assertions;
+#if P56
+using Unity.BossRoom.Gameplay.Actions;
+#endif  // P56
 
 namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 {

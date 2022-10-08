@@ -92,7 +92,7 @@ namespace Unity.BossRoom.Gameplay.Actions
 
 #if P56
                 // "Lock on" the target.
-                m_Movement.LockOnTransform(targetObject.transform);
+                parent.Movement.LockOnTransform(targetObject.transform);
 #endif  // P56
             }
         }

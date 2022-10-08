@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Assertions;
 #if P56
 using System;
+using Unity.BossRoom.Utils;
 #endif  // P56
 
 namespace Unity.BossRoom.CameraUtils

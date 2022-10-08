@@ -51,14 +51,14 @@ namespace Unity.BossRoom.Gameplay.Actions
 
             void Update()
         {
-#if P56 && !OVR
+#if !P56 || !OVR
             if (PlaneRaycast(k_Plane, m_Camera.ScreenPointToRay(Input.mousePosition), out Vector3 pointOnPlane) &&
                 NavMesh.SamplePosition(pointOnPlane, out m_NavMeshHit, 2f, NavMesh.AllAreas))
-#else   // P56 && !OVR
+#else   // !P56 || !OVR
             var ray = new Ray(m_RHandTransform.position, m_RHandTransform.forward);
             if (PlaneRaycast(k_Plane, ray, out Vector3 pointOnPlane) &&
                 NavMesh.SamplePosition(pointOnPlane, out m_NavMeshHit, 2f, NavMesh.AllAreas))
-#endif  // P56 && !OVR
+#endif  // !P56 || !OVR
             {
                 transform.position = m_NavMeshHit.position;
             }
@@ -69,20 +69,20 @@ namespace Unity.BossRoom.Gameplay.Actions
             m_OutOfRangeVisualization.SetActive(!isInRange);
 
             // wait for the player to click down and then release the mouse button before actually taking the input
-#if P56 && !OVR
+#if !P56 || !OVR
             if (Input.GetMouseButtonDown(0))
-#else   // P56 && !OVR
+#else   // !P56 || !OVR
             if (OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger))
-#endif  // P56 && !OVR
+#endif  // !P56 || !OVR
             {
                 m_ReceivedMouseDownEvent = true;
             }
 
-#if P56 && !OVR
+#if !P56 || !OVR
             if (Input.GetMouseButtonUp(0) && m_ReceivedMouseDownEvent)
-#else   // P56 && !OVR
+#else   // !P56 || !OVR
             if (OVRInput.GetUp(OVRInput.RawButton.RIndexTrigger) && m_ReceivedMouseDownEvent)
-#endif  // P56 && !OVR
+#endif  // !P56 || !OVR
             {
                 if (isInRange)
                 {

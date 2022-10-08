@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 
-namespace Unity.Multiplayer.Samples.BossRoom.Client
+//namespace Unity.Multiplayer.Samples.BossRoom.Client
+namespace Unity.BossRoom.Gameplay.UI
 {
     public class DebugLogText : MonoBehaviour
     {

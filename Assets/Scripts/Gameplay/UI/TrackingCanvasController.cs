@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Unity.Multiplayer.Samples.BossRoom.Visual;
+//using Unity.Multiplayer.Samples.BossRoom.Visual;
 using UnityEngine.SceneManagement;
 
 namespace Unity.Multiplayer.Samples.BossRoom.Client

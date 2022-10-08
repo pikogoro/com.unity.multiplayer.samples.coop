@@ -50,14 +50,11 @@ namespace Unity.BossRoom.Gameplay.Actions
                 }
             }
 
-<<<<<<< HEAD:Assets/Scripts/Gameplay/Action/ChargedLaunchProjectileAction.cs
 #if P56
             base.m_Direction = Camera.main.transform.forward;
 #endif  // P56
-            m_Parent.serverAnimationHandler.NetworkAnimator.SetTrigger(Description.Anim);
-=======
+
             serverCharacter.serverAnimationHandler.NetworkAnimator.SetTrigger(Config.Anim);
->>>>>>> upstream/main:Assets/Scripts/Gameplay/Action/ConcreteActions/ChargedLaunchProjectileAction.cs
 
             // start the "charging up" ActionFX
             serverCharacter.clientCharacter.RecvDoActionClientRPC(Data);

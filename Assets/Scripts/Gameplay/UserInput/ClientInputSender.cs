@@ -9,10 +9,12 @@ using UnityEngine.AI;
 using UnityEngine.Assertions;
 using UnityEngine.EventSystems;
 #if P56
-using Unity.Multiplayer.Samples.BossRoom.Visual;
+//using Unity.Multiplayer.Samples.BossRoom.Visual;
+using Unity.BossRoom.Gameplay.UI;
+using Unity.BossRoom.CameraUtils;
+using Unity.BossRoom.Utils;
 #endif  // P56
 using Action = Unity.BossRoom.Gameplay.Actions.Action;
->>>>>>> upstream/main:Assets/Scripts/Gameplay/UserInput/ClientInputSender.cs
 
 namespace Unity.BossRoom.Gameplay.UserInput
 {
@@ -399,7 +401,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         {
                             movement.Position = hit.position;
                         }
-                        m_NetworkCharacter.SendCharacterInputServerRpc(movement);
+                        m_ServerCharacter.SendCharacterInputServerRpc(movement);
 
                         //Send our client only click request
                         ClientMoveEvent?.Invoke(hit.position);
@@ -454,12 +456,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 int numHits = 0;
                 if (triggerStyle == SkillTriggerStyle.MouseClick)
                 {
-#if P56 && !OVR
+#if !P56 || !OVR
                     var ray = m_MainCamera.ScreenPointToRay(UnityEngine.Input.mousePosition);
-#else   // P56 && !OVR
-
+#else   // !P56 || !OVR
                     var ray = new Ray(m_RHandTransform.position, m_RHandTransform.forward);
-#endif  // P56 && !OVR
+#endif  // !P56 || !OVR
                     numHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_MouseInputRaycastDistance, m_ActionLayerMask);
                 }
 
@@ -502,7 +503,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 PopulateSkillRequest(k_CachedHit[0].point, actionID, ref data);
 #else   // !P56
                 // Set direction to the character's facing direction if target is nothing.
-                PopulateSkillRequest(transform.position + transform.forward, actionType, ref data, false);
+                PopulateSkillRequest(transform.position + transform.forward, actionID, ref data, false);
 #endif  // !P56
 
                 SendInput(data);
@@ -745,15 +746,15 @@ namespace Unity.BossRoom.Gameplay.UserInput
             if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
             {
                 // Start rotation of character's facing by mouse button down.
-                if (Input.GetMouseButtonDown(0))
+                if (UnityEngine.Input.GetMouseButtonDown(0))
                 {
-                    RequestAction(ActionType.GeneralTarget, SkillTriggerStyle.MouseClick);
+                    RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype, SkillTriggerStyle.MouseClick);
                     m_MouseDownPosition = Input.mousePosition;
                     m_IsMouseDown = true;
                     m_MoveRequest = true;
                 }
                 // Stop rotation of character's facing by mouse bottun up.
-                if (Input.GetMouseButtonUp(0))
+                if (UnityEngine.Input.GetMouseButtonUp(0))
                 {
                     m_MouseDownPosition = Vector3.zero;
                     m_IsMouseDown = false;

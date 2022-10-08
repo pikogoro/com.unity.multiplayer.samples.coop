@@ -189,7 +189,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// </summary>
         /// <param name="movementTarget">The position which this character should move towards.</param>
         [ServerRpc]
+#if !P56
         public void SendCharacterInputServerRpc(Vector3 movementTarget)
+#else   // !P56
+        public void SendCharacterInputServerRpc(ActionMovement movementTarget)
+#endif  // !P56
         {
             if (LifeState == LifeState.Alive && !m_Movement.IsPerformingForcedMovement())
             {
@@ -202,10 +206,51 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     }
                 }
 
+#if !P56
                 m_ServerActionPlayer.CancelRunningActionsByLogic(ActionLogic.Target, true); //clear target on move.
+#else   // !P56
+                if (!m_Movement.HasLockOnTarget)
+                {
+                    m_ServerActionPlayer.CancelRunningActionsByLogic(ActionLogic.Target, true); //clear target on move.
+                }
+#endif  // !P56
                 m_Movement.SetMovementTarget(movementTarget);
             }
         }
+
+        /*
+#if !P56
+        private void OnClientMoveRequest(Vector3 targetPosition)
+#else   // P56
+        private void OnClientMoveRequest(ActionMovement targetPosition)
+#endif  // P56
+        {
+            if (NetState.LifeState == LifeState.Alive && !m_Movement.IsPerformingForcedMovement())
+            {
+                // if we're currently playing an interruptible action, interrupt it!
+                if (m_ActionPlayer.GetActiveActionInfo(out ActionRequestData data))
+                {
+                    if (GameDataSource.Instance.ActionDataByType.TryGetValue(data.ActionTypeEnum, out ActionDescription description))
+                    {
+                        if (description.ActionInterruptible)
+                        {
+                            m_ActionPlayer.ClearActions(false);
+                        }
+                    }
+                }
+
+#if !P56
+                m_ActionPlayer.CancelRunningActionsByLogic(ActionLogic.Target, true); //clear target on move.
+#else   // P56
+                if (!m_Movement.HasLockOnTarget)
+                {
+                    m_ActionPlayer.CancelRunningActionsByLogic(ActionLogic.Target, true); //clear target on move.
+                }
+#endif  // P56
+                m_Movement.SetMovementTarget(targetPosition);
+            }
+        }
+        */
 
         // ACTION SYSTEM
 
@@ -271,40 +316,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_ServerActionPlayer.PlayAction(ref action);
             }
         }
-
-        /*
-#if !P56
-        private void OnClientMoveRequest(Vector3 targetPosition)
-#else   // P56
-        private void OnClientMoveRequest(ActionMovement targetPosition)
-#endif  // P56
-        {
-            if (NetState.LifeState == LifeState.Alive && !m_Movement.IsPerformingForcedMovement())
-            {
-                // if we're currently playing an interruptible action, interrupt it!
-                if (m_ActionPlayer.GetActiveActionInfo(out ActionRequestData data))
-                {
-                    if (GameDataSource.Instance.ActionDataByType.TryGetValue(data.ActionTypeEnum, out ActionDescription description))
-                    {
-                        if (description.ActionInterruptible)
-                        {
-                            m_ActionPlayer.ClearActions(false);
-                        }
-                    }
-                }
-
-#if !P56
-                m_ActionPlayer.CancelRunningActionsByLogic(ActionLogic.Target, true); //clear target on move.
-#else   // P56
-                if (!m_Movement.HasLockOnTarget)
-                {
-                    m_ActionPlayer.CancelRunningActionsByLogic(ActionLogic.Target, true); //clear target on move.
-                }
-#endif  // P56
-                m_Movement.SetMovementTarget(targetPosition);
-            }
-        }
-        */
 
         void OnLifeStateChanged(LifeState prevLifeState, LifeState lifeState)
         {
