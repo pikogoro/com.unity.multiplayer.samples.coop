@@ -134,8 +134,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if OVR
         bool m_IsMoving = false;
         float m_BaseRotationY = 0f;
-        Transform m_RHandTransform = null;
         Transform m_LHandTransform = null;
+        Transform m_RHandTransform = null;
         bool m_Rotated = false;
 #endif  // OVR
 #endif  // P56
@@ -181,8 +181,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
             m_LastRotationY = transform.rotation.eulerAngles.y;
 
 #if OVR
-            m_RHandTransform = GameObject.Find("RightHandAnchor").transform;
             m_LHandTransform = GameObject.Find("LeftHandAnchor").transform;
+            m_RHandTransform = GameObject.Find("RightHandAnchor").transform;
             m_BaseRotationY = transform.rotation.eulerAngles.y;
             m_CameraController.BaseRotationY = m_BaseRotationY;
 #endif  // OVR

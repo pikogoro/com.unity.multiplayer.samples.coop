@@ -134,7 +134,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fcaeb9b3de1affc46ab6cbed4951b103, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Target: {fileID: 0}
   m_UpOffset: 0
   m_ForwardOffset: 1
 --- !u!1 &4686098599846459299
