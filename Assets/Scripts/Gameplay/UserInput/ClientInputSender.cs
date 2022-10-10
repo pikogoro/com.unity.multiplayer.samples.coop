@@ -136,6 +136,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
         float m_BaseRotationY = 0f;
         Transform m_RHandTransform = null;
         Transform m_LHandTransform = null;
+        bool m_Rotated = false;
 #endif  // OVR
 #endif  // P56
 
@@ -309,7 +310,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     if (m_IsMouseDown)
 #else   // !OVR
                     // Rotation by right controller stick.
-                    if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
+                    //if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
+                    if (Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) > 0.5f)
                     {
                         m_IsMoving = true;
                     }
@@ -352,13 +354,20 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #else   // !OVR
                         // Rotation by right controller stick.
                         float deltaRotationY = 0f;
-                        if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight))
+                        if (!m_Rotated)
                         {
-                            deltaRotationY = 30f;
-                        }
-                        else if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
-                        {
-                            deltaRotationY = -30f;
+                            //if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight))
+                            if (OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x > 0.5f)
+                            {
+                                deltaRotationY = 30f;
+                                m_Rotated = true;
+                            }
+                            //else if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
+                            else if (OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x < -0.5f)
+                            {
+                                deltaRotationY = -30f;
+                                m_Rotated = true;
+                            }
                         }
 
                         if (deltaRotationY != 0f)
@@ -610,7 +619,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
                     else
                     {
+#if !OVR
                         resultData.Direction = m_MainCamera.transform.forward.normalized;
+#else   // !OVR
+                        resultData.Direction = m_RHandTransform.forward.normalized;
+#endif  // !OVR
                     }
 #endif  // !P56
                     resultData.ShouldClose = false; //why? Because you could be lining up a shot, hoping to hit other people between you and your target. Moving you would be quite invasive.
@@ -735,11 +748,18 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #else   // !OVR
             // Start moving by input from Joystick or right controller stick.
             if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f ||
-                OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
+                //OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
+                Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) > 0.5f)
 #endif  // !OVR
             {
                 m_MoveRequest = true;
             }
+#if OVR
+            if (Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) < 0.5f)
+            {
+                m_Rotated = false;
+            }
+#endif  // OVR
 
             // Ignore mouse down (or touch) if the position is over UI game object.
 #if UNITY_STANDALONE
@@ -789,7 +809,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             // Right index trigger
             if (OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger))
             {
-                RequestAction(ActionType.GeneralTarget, SkillTriggerStyle.MouseClick);
+                RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype, SkillTriggerStyle.MouseClick);
                 m_IsMouseDown = true;
             }
             else if (OVRInput.GetUp(OVRInput.RawButton.RIndexTrigger))
@@ -799,34 +819,34 @@ namespace Unity.BossRoom.Gameplay.UserInput
             // Right hand trigger
             if (OVRInput.GetDown(OVRInput.RawButton.RHandTrigger))
             {
-                RequestAction(CharacterData.Skill1, SkillTriggerStyle.Keyboard);
+                RequestAction(CharacterClass.Skill1, SkillTriggerStyle.Keyboard);
                 m_IsMouseDown = true;
             }
             else if (OVRInput.GetUp(OVRInput.RawButton.RHandTrigger))
             {
-                RequestAction(CharacterData.Skill1, SkillTriggerStyle.KeyboardRelease);
+                RequestAction(CharacterClass.Skill1, SkillTriggerStyle.KeyboardRelease);
                 m_IsMouseDown = false;
             }
             // A button
             if (OVRInput.GetDown(OVRInput.RawButton.A))
             {
-                RequestAction(CharacterData.Skill2, SkillTriggerStyle.Keyboard);
+                RequestAction(CharacterClass.Skill2, SkillTriggerStyle.Keyboard);
                 m_IsMouseDown = true;
             }
             else if (OVRInput.GetUp(OVRInput.RawButton.A))
             {
-                RequestAction(CharacterData.Skill2, SkillTriggerStyle.KeyboardRelease);
+                RequestAction(CharacterClass.Skill2, SkillTriggerStyle.KeyboardRelease);
                 m_IsMouseDown = false;
             }
             // B button
             if (OVRInput.GetDown(OVRInput.RawButton.B))
             {
-                RequestAction(CharacterData.Skill3, SkillTriggerStyle.Keyboard);
+                RequestAction(CharacterClass.Skill3, SkillTriggerStyle.Keyboard);
                 m_IsMouseDown = true;
             }
             else if (OVRInput.GetUp(OVRInput.RawButton.B))
             {
-                RequestAction(CharacterData.Skill3, SkillTriggerStyle.KeyboardRelease);
+                RequestAction(CharacterClass.Skill3, SkillTriggerStyle.KeyboardRelease);
                 m_IsMouseDown = false;
             }
 #endif  // !OVR
