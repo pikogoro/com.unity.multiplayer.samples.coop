@@ -23,11 +23,11 @@ namespace Unity.BossRoom.Utils.Editor
         {
             var rootGO = new GameObject(gameObjectName);
             textComponent = rootGO.AddComponent<TextMeshProUGUI>();
-#if P56 && !OVR
+#if !P56 || !OVR
             textComponent.fontSize = 28;
-#else   // P56 && !OVR
+#else   // !P56 || !OVR
             textComponent.fontSize = 36;
-#endif  // P56 && !OVR
+#endif  // !P56 || !OVR
             textComponent.text = defaultText;
             textComponent.horizontalAlignment = HorizontalAlignmentOptions.Left;
             textComponent.verticalAlignment = VerticalAlignmentOptions.Middle;

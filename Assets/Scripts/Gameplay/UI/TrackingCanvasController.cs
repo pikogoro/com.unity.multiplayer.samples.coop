@@ -8,7 +8,8 @@ namespace Unity.Multiplayer.Samples.BossRoom.Client
 {
     public class TrackingCanvasController : MonoBehaviour
     {
-        [SerializeField] private Transform m_Target = null;
+        //[SerializeField] private Transform m_Target = null;
+        private Transform m_Target = null;
         [SerializeField] private float m_UpOffset = 0f;         // default is 0m.
         [SerializeField] private float m_ForwardOffset = 1f;    // default is 1m.
 

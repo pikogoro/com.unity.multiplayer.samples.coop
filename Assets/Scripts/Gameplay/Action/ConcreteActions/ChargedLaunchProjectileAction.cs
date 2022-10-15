@@ -51,7 +51,11 @@ namespace Unity.BossRoom.Gameplay.Actions
             }
 
 #if P56
+#if !OVR
             base.m_Direction = Camera.main.transform.forward;
+#else   // !OVR
+            base.m_Direction = GameObject.Find("RightHandAnchor").transform.forward.normalized;
+#endif  // !OVR
 #endif  // P56
 
             serverCharacter.serverAnimationHandler.NetworkAnimator.SetTrigger(Config.Anim);
