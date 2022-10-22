@@ -17,6 +17,7 @@
 5. Select "Player".
 6. Expand "Other Settings".
 7. Add "P56" and "OVR" symbol to "Scripting Defines Symbols".
+8. Run "store_files.bat" in "ForP56" folder.
 
 ### Import of Oculus Integration
 
@@ -38,6 +39,5 @@
 
 ### Build
 
-(1) Open "File" -> "Build Settings...".
-(2) Push "Build And Run" button".
-
+1. Open "File" -> "Build Settings...".
+2. Push "Build And Run" button".
