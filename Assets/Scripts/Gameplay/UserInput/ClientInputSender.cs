@@ -131,6 +131,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
         }
 
         NetworkStats m_NetworkStats = null;
+
+        // For jump
+        float m_UpwardPower = 10f;
+        float m_UpwardVelocity = 0f;
+        float m_SavedPositionYOnMesh = 0f;  // Saved position y on mesh
+        bool m_JumpStateChanged = false;
 #if OVR
         bool m_IsMoving = false;
         float m_BaseRotationY = 0f;
@@ -275,7 +281,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 }
             }
 #else   // !P56
-            if (m_MoveRequest)
+            if (m_MoveRequest || m_JumpStateChanged)
             {
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
@@ -283,7 +289,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                     ActionMovement movement = new ActionMovement();
                     Vector3 estimatedPosition;
-                    if (m_Joystick.Vertical == 0f && m_Joystick.Horizontal == 0f)
+                    if (m_Joystick.Vertical == 0f && m_Joystick.Horizontal == 0f && m_UpwardVelocity == 0f)
                     {
                         movement.Position = ActionMovement.PositionNull;
                         estimatedPosition = transform.position;
@@ -304,6 +310,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         m_IsMoving = true;
 #endif  // OVR
                     }
+
+                    // Restore position y on mesh.
+                    estimatedPosition.y = m_SavedPositionYOnMesh;
 
                     // Change direction of character's facing during mouse dragging.
 #if !OVR
@@ -398,8 +407,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         movement.Rotation = ActionMovement.RotationNull;
                     }
 
-                    m_LastActionMovement = movement;
-
                     // verify point is indeed on navmesh surface
                     if (NavMesh.SamplePosition(estimatedPosition,
                             out var hit,
@@ -409,7 +416,15 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         if (!ActionMovement.IsNull(movement.Position))
                         {
                             movement.Position = hit.position;
+
+                            // Backup position y on mesh.
+                            m_SavedPositionYOnMesh = movement.Position.y;
                         }
+
+                        // Set upward velocity and reset jump state.
+                        movement.UpwardVelocity = m_UpwardVelocity;
+                        m_JumpStateChanged = false;
+
                         m_ServerCharacter.SendCharacterInputServerRpc(movement);
 
                         //Send our client only click request
@@ -423,22 +438,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         }
 #endif  // !OVR
                     }
+
+                    m_LastActionMovement = movement;
                 }
             }
 #endif  // !P56
-                    }
-
-#if P56
-#if UNITY_EDITOR || DEVELOPMENT_BUILD || OVR
-        void OnGUI()
-        {
-            string text =
-                    "Position: " + m_LastActionMovement.Position.ToString() + "\n" +
-                    "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString();
-            DebugLogText.Log(text);
         }
-#endif
-#endif  // P56
 
         /// <summary>
         /// Perform a skill in response to some input trigger. This is the common method to which all input-driven skill plays funnel.
@@ -677,7 +682,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         void Update()
         {
-#if P56 && !OVR
             if (UnityEngine.Input.GetKeyDown(KeyCode.Alpha1))
             {
                 RequestAction(CharacterClass.Skill1, SkillTriggerStyle.Keyboard);
@@ -719,7 +723,20 @@ namespace Unity.BossRoom.Gameplay.UserInput
             {
                 RequestAction(GameDataSource.Instance.Emote4ActionPrototype, SkillTriggerStyle.Keyboard);
             }
-#endif  // P56 && !OVR
+
+#if P56
+            // For jump
+            if (UnityEngine.Input.GetKeyDown(KeyCode.Space))
+            {
+                m_UpwardVelocity = m_UpwardPower;
+                m_JumpStateChanged = true;
+            }
+            else if (UnityEngine.Input.GetKeyUp(KeyCode.Space))
+            {
+                m_UpwardVelocity = 0f;
+                m_JumpStateChanged = true;
+            }
+#endif  // P56
 
 #if !P56
             if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
@@ -747,20 +764,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
             if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f)
 #else   // !OVR
             // Start moving by input from Joystick or right controller stick.
-            if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f ||
-                //OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
-                Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) > 0.5f)
+            if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f || Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) > 0.5f)
 #endif  // !OVR
             {
                 m_MoveRequest = true;
             }
-#if OVR
-            if (Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) < 0.5f)
-            {
-                m_Rotated = false;
-            }
-#endif  // OVR
 
+#if !OVR
             // Ignore mouse down (or touch) if the position is over UI game object.
 #if UNITY_STANDALONE
             if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
@@ -781,7 +791,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 }
             }
 #elif UNITY_ANDROID
-#if !OVR
             for (int i = 0; i < Input.touchCount; i++)
             {
                 Touch touch = Input.GetTouch(i);
@@ -805,7 +814,20 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
                 }
             }
+#endif  // UNITY_STANDALONE || UNITY_ANDROID
+
+            // Set current rotation y to the last rotation y during mouse is not down.
+            if (!m_IsMouseDown)
+            {
+                m_LastRotationY = transform.rotation.eulerAngles.y;
+            }
+
 #else   // !OVR
+            if (Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) < 0.5f)
+            {
+                m_Rotated = false;
+            }
+
             // Right index trigger
             if (OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger))
             {
@@ -850,16 +872,20 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 m_IsMouseDown = false;
             }
 #endif  // !OVR
-#endif  // UNITY_STANDALONE || UNITY_ANDROID
-
-#if !OVR
-            // Set current rotation y to the last rotation y during mouse is not down.
-            if (!m_IsMouseDown)
-            {
-                m_LastRotationY = transform.rotation.eulerAngles.y;
-            }
-#endif  // !OVR
 #endif  // !P56
         }
+
+#if P56
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || OVR
+        void OnGUI()
+        {
+            string text =
+                    "Position: " + m_LastActionMovement.Position.ToString() + "\n" +
+                    "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString() + "\n" +
+                    "UpwardVelocity: " + m_UpwardVelocity.ToString();
+            DebugLogText.Log(text);
+        }
+#endif
+#endif  // P56
     }
 }

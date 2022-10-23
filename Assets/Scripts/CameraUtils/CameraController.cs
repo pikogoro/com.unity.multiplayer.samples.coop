@@ -114,7 +114,8 @@ namespace Unity.BossRoom.CameraUtils
             if (m_IsFPSView)
             {
                 // FPS
-                targetPosition = new Vector3(0f, 1.3f, 0.5f);
+                //targetPosition = new Vector3(0f, 1.3f, 0.5f);
+                targetPosition = new Vector3(0f, 1.3f, 0f);
                 targetRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
                 if (m_BoneHead != null && m_BoneHead.activeSelf)
                 {

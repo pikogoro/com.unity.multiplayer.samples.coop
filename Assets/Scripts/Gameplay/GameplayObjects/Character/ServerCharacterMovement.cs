@@ -36,8 +36,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         private DynamicNavPath m_NavPath;
 #if P56
         private Quaternion m_Rotation = ActionMovement.RotationNull;
-        private bool m_hasLockOnTarget = false;
-        public bool HasLockOnTarget { get { return m_hasLockOnTarget;  } }
+        private bool m_HasLockOnTarget = false;
+        public bool HasLockOnTarget { get { return m_HasLockOnTarget; } }
+
+        // For jump
+        float m_SavedPositionY = 0f;    // Saved position y of character
+        float m_UpwardVelocity = 0f;
+        bool m_IsGrounded = true;
 #endif  // P56
 
         private MovementState m_MovementState;
@@ -88,35 +93,35 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// <param name="position">Position in world space to path to. </param>
 #if !P56
         public void SetMovementTarget(Vector3 position)
-#else   // P56
+#else   // !P56
         public void SetMovementTarget(ActionMovement movement)
-#endif   // P56
+#endif  // !P56
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (TeleportModeActivated)
             {
 #if !P56
                 Teleport(position);
-#else   // P56
+#else   // !P56
                 if (!ActionMovement.IsNull(movement.Position))
                 {
                     Teleport(movement.Position);
                 }
-#endif   // P56
+#endif  // !P56
                 return;
             }
 #endif
             m_MovementState = MovementState.PathFollowing;
 #if !P56
             m_NavPath.SetTargetPosition(position);
-#else   // P56
+#else   // !P56
             if (ActionMovement.IsNull(movement.Position))
             {
-                m_NavPath.SetTargetPosition(transform.position, m_hasLockOnTarget);
+                m_NavPath.SetTargetPosition(transform.position, m_HasLockOnTarget);
             }
             else
             {
-                m_NavPath.SetTargetPosition(movement.Position, m_hasLockOnTarget);
+                m_NavPath.SetTargetPosition(movement.Position, m_HasLockOnTarget);
             }
 
             if (ActionMovement.IsNull(movement.Rotation))
@@ -127,10 +132,24 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             else
             {
                 // Reset lock on.
-                m_hasLockOnTarget = false;
+                m_HasLockOnTarget = false;
                 m_Rotation = movement.Rotation;
             }
-#endif   // P56
+
+            // For jump
+            if (m_IsGrounded && 0f < movement.UpwardVelocity)
+            {
+                m_UpwardVelocity = movement.UpwardVelocity;
+                m_IsGrounded = false;
+            }
+            else
+            {
+                if (0f < m_UpwardVelocity && movement.UpwardVelocity == 0f)
+                {
+                    m_UpwardVelocity = 0f;
+                }
+            }
+#endif  // !P56
         }
 
         public void StartForwardCharge(float speed, float duration)
@@ -165,7 +184,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         {
             m_MovementState = MovementState.PathFollowing;
             m_NavPath.LockOnTransform(lockOnTransform);
-            m_hasLockOnTarget = true;
+            m_HasLockOnTarget = true;
         }
 #endif  // P56
 
@@ -284,24 +303,63 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if !P56
                 // If we didn't move stop moving.
                 if (movementVector == Vector3.zero)
-#else   // P56
+#else   // !P56
                 // Stop moving.
-                if (movementVector == Vector3.zero && ActionMovement.IsNull(m_Rotation))
-#endif   // P56
+                if (movementVector == Vector3.zero && ActionMovement.IsNull(m_Rotation) && m_IsGrounded)
+#endif   // !P56
                 {
                     m_MovementState = MovementState.Idle;
                     return;
                 }
             }
 
-            m_NavMeshAgent.Move(movementVector);
 #if !P56
+            m_NavMeshAgent.Move(movementVector);
             transform.rotation = Quaternion.LookRotation(movementVector);
-#else   // P56
+#else   // !P56
+            // Restart NavMeshAgent for movement of character.
+            if (m_NavMeshAgent.isStopped)
+            {
+                m_NavMeshAgent.updatePosition = true;
+                m_NavMeshAgent.isStopped = false;
+            }
+            m_NavMeshAgent.Move(movementVector);
+
+            if (!m_IsGrounded)
+            {
+                // Update position y of character.
+                m_SavedPositionY += m_UpwardVelocity * Time.fixedDeltaTime;
+
+                Vector3 position = m_NavMeshAgent.transform.position;
+                if (position.y < m_SavedPositionY)
+                {
+                    // If in the air, stop NavMeshAgent.
+                    m_NavMeshAgent.updatePosition = false;
+                    m_NavMeshAgent.isStopped = true;
+
+                    // Update transform by saved position y directly.
+                    position.y = m_SavedPositionY;
+                    transform.position = position;
+
+                    // Update upward velocity by gravity.
+                    m_UpwardVelocity += Physics.gravity.y * Time.fixedDeltaTime;
+                }
+                else
+                {
+                    // If on the ground, reset saved position y and upward velocity.
+                    m_IsGrounded = true;
+                    m_SavedPositionY = 0f;
+                    m_UpwardVelocity = 0f;
+                }
+            }
+
             // Change direction.
             if (m_MovementState == MovementState.Charging || m_MovementState == MovementState.Knockback || ActionMovement.IsNull(m_Rotation))
             {
-                transform.rotation = Quaternion.LookRotation(movementVector);
+                if (movementVector != Vector3.zero)
+                {
+                    transform.rotation = Quaternion.LookRotation(movementVector);
+                }
             }
             else if (m_NavPath.TransformLockOnTarget != null)
             {
@@ -311,7 +369,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             {
                 transform.rotation = Quaternion.Euler(new Vector3(0f, m_Rotation.eulerAngles.y, 0f));
             }
-#endif   // P56
+#endif  // !P56
 
             // After moving adjust the position of the dynamic rigidbody.
             m_Rigidbody.position = transform.position;
