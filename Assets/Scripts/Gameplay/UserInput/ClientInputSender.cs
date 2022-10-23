@@ -871,6 +871,19 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 RequestAction(CharacterClass.Skill3, SkillTriggerStyle.KeyboardRelease);
                 m_IsMouseDown = false;
             }
+
+            // For jump
+            // Right index trigger
+            if (OVRInput.GetDown(OVRInput.RawButton.LIndexTrigger))
+            {
+                m_UpwardVelocity = m_UpwardPower;
+                m_JumpStateChanged = true;
+            }
+            else if (OVRInput.GetUp(OVRInput.RawButton.LIndexTrigger))
+            {
+                m_UpwardVelocity = 0f;
+                m_JumpStateChanged = true;
+            }
 #endif  // !OVR
 #endif  // !P56
         }

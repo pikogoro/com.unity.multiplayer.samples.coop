@@ -78,6 +78,7 @@ namespace Unity.BossRoom.CameraUtils
             m_CamTransform = Camera.main.gameObject.transform;
             m_CamTransform.parent = transform;
             m_CamTransform.localPosition = new Vector3(0f, 1.3f, 0.5f);
+            m_CamTransform.localPosition += transform.forward * 0.3f;
             m_CamTransform.localRotation = Quaternion.Euler(0f, 0f, 0f);
 
             m_LerpedPosition = m_CamTransform.localPosition;
@@ -91,6 +92,7 @@ namespace Unity.BossRoom.CameraUtils
             }
 
             m_CamTransform.position = transform.position + new Vector3(0f, 1.3f, 0f); ;
+            m_CamTransform.position += transform.forward * 0.3f;
 
             m_LerpedPosition = m_CamTransform.position;
 #endif  // !OVR
@@ -114,8 +116,8 @@ namespace Unity.BossRoom.CameraUtils
             if (m_IsFPSView)
             {
                 // FPS
-                //targetPosition = new Vector3(0f, 1.3f, 0.5f);
                 targetPosition = new Vector3(0f, 1.3f, 0f);
+                targetPosition += transform.forward * 0.3f;
                 targetRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
                 if (m_BoneHead != null && m_BoneHead.activeSelf)
                 {
@@ -141,9 +143,8 @@ namespace Unity.BossRoom.CameraUtils
             m_CamTransform.localRotation = m_LerpedRotation;
 #else   // !OVR
             // Update character's pitch.
-            Vector3 targetPosition;
-
-            targetPosition = transform.position + new Vector3(0f, 1.3f, 0f);
+            Vector3 targetPosition = transform.position + new Vector3(0f, 1.3f, 0f);
+            targetPosition += transform.forward * 0.3f;
 
             // Lerp of character's view.
             m_LerpedPosition = m_PositionLerper.LerpPosition(m_LerpedPosition, targetPosition);
