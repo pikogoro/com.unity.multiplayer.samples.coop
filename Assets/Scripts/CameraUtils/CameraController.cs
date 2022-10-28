@@ -29,6 +29,13 @@ namespace Unity.BossRoom.CameraUtils
             set { m_RotationX = value; }
         }
 
+        float m_RotationY;
+
+        public float RotationY
+        {
+            set { m_RotationY = value; }
+        }
+
         // Variables for lerping of character's view.
         PositionLerper m_PositionLerper;
         RotationLerper m_RotationLerper;
@@ -77,10 +84,12 @@ namespace Unity.BossRoom.CameraUtils
 #if !OVR
             m_CamTransform = Camera.main.gameObject.transform;
             m_CamTransform.parent = transform;
-            m_CamTransform.localPosition = new Vector3(0f, 1.3f, 0.5f);
-            m_CamTransform.localPosition += transform.forward * 0.3f;
-            m_CamTransform.localRotation = Quaternion.Euler(0f, 0f, 0f);
+            //m_CamTransform.position = transform.position + new Vector3(0f, 1.3f, 0f);
+            //m_CamTransform.position += transform.forward * 0.3f;
+            m_CamTransform.localPosition = transform.position + new Vector3(0f, 1.3f, 0.3f);
 
+            //m_LerpedPosition = m_CamTransform.position;
+            //m_LerpedRotation = m_CamTransform.rotation;
             m_LerpedPosition = m_CamTransform.localPosition;
             m_LerpedRotation = m_CamTransform.localRotation;
 #else   // !OVR
@@ -116,31 +125,47 @@ namespace Unity.BossRoom.CameraUtils
             if (m_IsFPSView)
             {
                 // FPS
-                targetPosition = new Vector3(0f, 1.3f, 0f);
-                targetPosition += transform.forward * 0.3f;
-                targetRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
                 if (m_BoneHead != null && m_BoneHead.activeSelf)
                 {
                     m_BoneHead.SetActive(false);
+                    //m_CamTransform.parent = null;
+                    //m_LerpedPosition = m_CamTransform.position;
+                    //m_LerpedRotation = m_CamTransform.rotation;
                 }
+                //targetPosition = transform.position + new Vector3(0.0f, 1.3f, 0f);
+                //targetPosition += transform.forward * 0.3f;
+                targetPosition = new Vector3(0.0f, 1.3f, 0.3f);
+                //targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
+                targetRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
             }
             else
             {
                 // TPS
-                targetPosition = new Vector3(0f, 3f - m_RotationX / 30f, 3f * Math.Abs(m_RotationX) / 30f - 5f);
-                targetRotation = Quaternion.Euler(15f - m_RotationX, 0f, 0f);
                 if (m_BoneHead != null && !m_BoneHead.activeSelf)
                 {
                     m_BoneHead.SetActive(true);
+                    //m_CamTransform.parent = transform;
+                    //m_LerpedPosition = m_CamTransform.localPosition;
+                    //m_LerpedRotation = m_CamTransform.localRotation;
                 }
+                targetPosition = new Vector3(0f, 3f - m_RotationX / 30f, 3f * Math.Abs(m_RotationX) / 30f - 5f);
+                targetRotation = Quaternion.Euler(15f - m_RotationX, 0f, 0f);
             }
 
             // Lerp of character's view.
             m_LerpedPosition = m_PositionLerper.LerpPosition(m_LerpedPosition, targetPosition);
             m_LerpedRotation = m_RotationLerper.LerpRotation(m_LerpedRotation, targetRotation);
 
-            m_CamTransform.localPosition = m_LerpedPosition;
-            m_CamTransform.localRotation = m_LerpedRotation;
+            //if (m_IsFPSView)
+            //{
+            //    m_CamTransform.position = m_LerpedPosition;
+            //    m_CamTransform.rotation = m_LerpedRotation;
+            //}
+            //else
+            //{
+                m_CamTransform.localPosition = m_LerpedPosition;
+                m_CamTransform.localRotation = m_LerpedRotation;
+            //}
 #else   // !OVR
             // Update character's pitch.
             Vector3 targetPosition = transform.position + new Vector3(0f, 1.3f, 0f);
@@ -156,5 +181,5 @@ namespace Unity.BossRoom.CameraUtils
 #endif  // !OVR
         }
 #endif  // P56
-        }
+    }
     }

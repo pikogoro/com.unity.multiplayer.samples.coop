@@ -136,7 +136,12 @@ namespace Unity.BossRoom.Navigation
         /// </summary>
         /// <param name="distance">The distance to move.</param>
         /// <returns>Returns the movement vector.</returns>
+#if !P56
         public Vector3 MoveAlongPath(float distance)
+#else   // !P56
+        // "position" is character's position on NavMesh.
+        public Vector3 MoveAlongPath(float distance, Vector3 position)
+#endif  // !P56
         {
             if (m_TransformTarget != null)
             {
@@ -148,7 +153,11 @@ namespace Unity.BossRoom.Navigation
                 return Vector3.zero;
             }
 
+#if !P56
             var currentPredictedPosition = m_Agent.transform.position;
+#else   // !P56
+            var currentPredictedPosition = position;
+#endif  // !P56
             var remainingDistance = distance;
 
             while (remainingDistance > 0)
@@ -170,7 +179,11 @@ namespace Unity.BossRoom.Navigation
                 break;
             }
 
+#if !P56
             return currentPredictedPosition - m_Agent.transform.position;
+#else   // !P56
+            return currentPredictedPosition - position;
+#endif  // !P56
         }
 
         void OnTargetPositionChanged(Vector3 newTarget)

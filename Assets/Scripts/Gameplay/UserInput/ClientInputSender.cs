@@ -119,24 +119,30 @@ namespace Unity.BossRoom.Gameplay.UserInput
         bool m_IsMouseDown = false;
         Vector3 m_MouseDownPosition = Vector3.zero;
         CameraController m_CameraController;
-        float m_LastPitch = 0f;
         ActionMovement m_LastActionMovement;
 #if UNITY_ANDROID
         int m_TouchFingerId = -1;
 #endif
-        float m_LastRotationY = 0f;
-
-        public float LastRotationY {
-            set { m_LastRotationY = value; }
-        }
-
         NetworkStats m_NetworkStats = null;
 
         // For jump
-        float m_UpwardPower = 10f;
+        float m_UpwardPower = 8f;
         float m_UpwardVelocity = 0f;
         float m_SavedPositionYOnMesh = 0f;  // Saved position y on mesh
         bool m_JumpStateChanged = false;
+
+        // For rotation
+        float m_SensitivityMouseX = 5f;
+        float m_SensitivityMouseY = 5f;
+        float m_LastRotationX = 0f;
+        float m_LastRotationY = 0f;
+        float m_LastSentRotationY = 0f;
+        private enum RotationState {
+            Idle = 0,
+            Rotating = 1,
+            Stopped = 2,
+        }
+        RotationState m_RotationState = RotationState.Idle;
 #if OVR
         bool m_IsMoving = false;
         float m_BaseRotationY = 0f;
@@ -185,7 +191,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
             // Save current rotation angle y for initial value.
             m_LastRotationY = transform.rotation.eulerAngles.y;
-
 #if OVR
             m_LHandTransform = GameObject.Find("LeftHandAnchor").transform;
             m_RHandTransform = GameObject.Find("RightHandAnchor").transform;
@@ -281,7 +286,51 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 }
             }
 #else   // !P56
-            if (m_MoveRequest || m_JumpStateChanged)
+
+#if UNITY_STANDALONE
+            // For rotation
+            Quaternion rotation = new Quaternion(0f, 0f, 0f, 0f);
+            if (Cursor.lockState == CursorLockMode.Locked)
+            {
+                float yaw = m_Joystick.MouseX * m_SensitivityMouseX;
+                float pitch = m_Joystick.MouseY * m_SensitivityMouseY;
+
+                // Calculate and adjust rotation X.
+                float rotationX = m_LastRotationX + pitch;
+                if (rotationX > 90f)
+                {
+                    rotationX = 90f;
+                }
+                else if (rotationX < -90)
+                {
+                    rotationX = -90f;
+                }
+
+                // Calculate and adjust rotation Y.
+                float rotationY = m_LastRotationY + yaw;
+                float rotationDelta = Math.Abs(rotationY - m_LastSentRotationY);
+                rotation = Quaternion.Euler(0f, rotationY, 0f);
+                if (rotationDelta > 0f)
+                {
+                    // Start rotation.
+                    m_RotationState = RotationState.Rotating;
+                }
+                else
+                {
+                    // Stop rotation.
+                    if (m_RotationState == RotationState.Rotating)
+                    {
+                        m_RotationState = RotationState.Stopped;
+                    }
+                }
+
+                // Update last rotation parameters.
+                m_LastRotationX = rotationX;
+                m_LastRotationY = rotationY;
+            }
+#endif  // UNITY_STANDALONE
+
+            if (m_MoveRequest || (m_RotationState != RotationState.Idle) || m_JumpStateChanged)
             {
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
@@ -316,7 +365,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                     // Change direction of character's facing during mouse dragging.
 #if !OVR
-                    if (m_IsMouseDown)
+                    //if (m_IsMouseDown)
+                    if (true)
 #else   // !OVR
                     // Rotation by right controller stick.
                     //if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
@@ -329,10 +379,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #endif  // !OVR
                     {
 #if !OVR
-#if UNITY_STANDALONE
-                        Vector2 position = Input.mousePosition;
-#elif UNITY_ANDROID
-
+#if UNITY_ANDROID
                         Vector2 position = Vector2.zero;
                         for (int i = 0; i < Input.touchCount; i++)
                         {
@@ -343,7 +390,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                                 break;
                             }
                         }
-#endif
                         float yaw = (position.x - m_MouseDownPosition.x) / 60f;
                         float pitch = (position.y - m_MouseDownPosition.y) / 60f + m_LastPitch;
 
@@ -360,6 +406,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                         // Save current rotaion y as last rotation y;
                         m_LastRotationY = movement.Rotation.eulerAngles.y;
+#endif
 #else   // !OVR
                         // Rotation by right controller stick.
                         float deltaRotationY = 0f;
@@ -393,7 +440,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
                     // Stop character's moving and rotation if no any input.
 #if !OVR
-                    else if (ActionMovement.IsNull(movement.Position) && !m_IsMouseDown)
+                    else if (ActionMovement.IsNull(movement.Position))
 #else   // !OVR
                     else if (ActionMovement.IsNull(movement.Position) && !m_IsMouseDown && !m_IsMoving)
 #endif  // !OVR
@@ -415,10 +462,28 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     {
                         if (!ActionMovement.IsNull(movement.Position))
                         {
+                            // Move and rotate character.
                             movement.Position = hit.position;
+                            movement.Rotation = rotation;
 
                             // Backup position y on mesh.
                             m_SavedPositionYOnMesh = movement.Position.y;
+                        }
+                        else
+                        {
+                            if (m_RotationState == RotationState.Rotating)
+                            {
+                                // Only rotate character.
+                                movement.Rotation = rotation;
+                            }
+                            else if (m_RotationState == RotationState.Stopped)
+                            {
+                                // Stop to move and rotate character.
+                                movement.Rotation = ActionMovement.RotationNull;
+                                m_RotationState = RotationState.Idle;
+                            }
+
+                            m_MoveRequest = false;
                         }
 
                         // Set upward velocity and reset jump state.
@@ -431,17 +496,16 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         ClientMoveEvent?.Invoke(hit.position);
 
 #if !OVR
-                        // Update character's pitch during mouse down.
-                        if (m_IsMouseDown)
-                        {
-                            m_CameraController.RotationX = m_LastPitch;
-                        }
+                        m_LastSentRotationY = m_LastRotationY;
 #endif  // !OVR
                     }
 
                     m_LastActionMovement = movement;
                 }
             }
+
+            m_CameraController.RotationX = m_LastRotationX;
+            m_CameraController.RotationY = m_LastRotationY;
 #endif  // !P56
         }
 
@@ -736,6 +800,15 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 m_UpwardVelocity = 0f;
                 m_JumpStateChanged = true;
             }
+
+            // Change mouse cursor loack state. 
+            if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (Cursor.lockState == CursorLockMode.Locked)
+                {
+                    Cursor.lockState = CursorLockMode.None; // Show mouse cursor.
+                }
+            }
 #endif  // P56
 
 #if !P56
@@ -768,6 +841,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #endif  // !OVR
             {
                 m_MoveRequest = true;
+
+                // If mouse cursor is not locked, lock it.
+                if (Cursor.lockState == CursorLockMode.None)
+                {
+                    Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
+                }
             }
 
 #if !OVR
@@ -775,19 +854,22 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if UNITY_STANDALONE
             if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
             {
+                //
+                if (UnityEngine.Input.GetMouseButtonDown(1))
+                {
+                    RequestAction(CharacterClass.Skill1, SkillTriggerStyle.MouseClick);
+                }
+
                 // Start rotation of character's facing by mouse button down.
                 if (UnityEngine.Input.GetMouseButtonDown(0))
                 {
                     RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype, SkillTriggerStyle.MouseClick);
-                    m_MouseDownPosition = Input.mousePosition;
-                    m_IsMouseDown = true;
-                    m_MoveRequest = true;
-                }
-                // Stop rotation of character's facing by mouse bottun up.
-                if (UnityEngine.Input.GetMouseButtonUp(0))
-                {
-                    m_MouseDownPosition = Vector3.zero;
-                    m_IsMouseDown = false;
+
+                    // If mouse cursor is not locked, lock it.
+                    if (Cursor.lockState == CursorLockMode.None)
+                    {
+                        Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
+                    }
                 }
             }
 #elif UNITY_ANDROID
@@ -815,13 +897,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 }
             }
 #endif  // UNITY_STANDALONE || UNITY_ANDROID
-
-            // Set current rotation y to the last rotation y during mouse is not down.
-            if (!m_IsMouseDown)
-            {
-                m_LastRotationY = transform.rotation.eulerAngles.y;
-            }
-
 #else   // !OVR
             if (Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) < 0.5f)
             {

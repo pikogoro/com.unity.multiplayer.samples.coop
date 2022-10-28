@@ -40,7 +40,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         public bool HasLockOnTarget { get { return m_HasLockOnTarget; } }
 
         // For jump
-        float m_SavedPositionY = 0f;    // Saved position y of character
+        float m_SavedPositionY = 0f;        // Saved position y of character
+        float m_SavedPositionYOnMesh = 0f;  // Saved position y on mesh of character
         float m_UpwardVelocity = 0f;
         bool m_IsGrounded = true;
 #endif  // P56
@@ -298,7 +299,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             else
             {
                 var desiredMovementAmount = GetBaseMovementSpeed() * Time.fixedDeltaTime;
+#if !P56
                 movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount);
+#else   // !P56
+                Vector3 position = m_NavMeshAgent.transform.position;
+                position.y = m_SavedPositionYOnMesh;
+                movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount, position);
+#endif  // !P56
 
 #if !P56
                 // If we didn't move stop moving.
@@ -338,6 +345,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     m_NavMeshAgent.isStopped = true;
 
                     // Update transform by saved position y directly.
+                    m_SavedPositionYOnMesh = position.y;
                     position.y = m_SavedPositionY;
                     transform.position = position;
 
