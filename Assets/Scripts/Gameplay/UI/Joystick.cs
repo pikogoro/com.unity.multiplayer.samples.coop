@@ -28,6 +28,20 @@ namespace Unity.BossRoom.Gameplay.UI
                 return (value == 0) ? m_Input.y : value;
             }
         }
+        public float MouseX
+        {
+            get
+            {
+                return Input.GetAxis("Mouse X");
+            }
+        }
+        public float MouseY
+        {
+            get
+            {
+                return Input.GetAxis("Mouse Y");
+            }
+        }
 
         [SerializeField] private RectTransform m_Background = null;
         [SerializeField] private RectTransform m_Handle = null;

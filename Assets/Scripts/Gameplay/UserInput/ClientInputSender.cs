@@ -9,7 +9,6 @@ using UnityEngine.AI;
 using UnityEngine.Assertions;
 using UnityEngine.EventSystems;
 #if P56
-//using Unity.Multiplayer.Samples.BossRoom.Visual;
 using Unity.BossRoom.Gameplay.UI;
 using Unity.BossRoom.CameraUtils;
 using Unity.BossRoom.Utils;
@@ -46,6 +45,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         RaycastHitComparer m_RaycastHitComparer;
 
+        [SerializeField]
         ServerCharacter m_ServerCharacter;
 
         /// <summary>
@@ -119,18 +119,35 @@ namespace Unity.BossRoom.Gameplay.UserInput
         bool m_IsMouseDown = false;
         Vector3 m_MouseDownPosition = Vector3.zero;
         CameraController m_CameraController;
-        float m_LastPitch = 0f;
         ActionMovement m_LastActionMovement;
 #if UNITY_ANDROID
         int m_TouchFingerId = -1;
 #endif
-        float m_LastRotationY = 0f;
-
-        public float LastRotationY {
-            set { m_LastRotationY = value; }
-        }
-
         NetworkStats m_NetworkStats = null;
+
+        // For jump
+        float m_UpwardPower = 8f;
+        float m_UpwardVelocity = 0f;
+        float m_SavedPositionYOnMesh = 0f;  // Saved position y on mesh
+        bool m_JumpStateChanged = false;
+
+        // For rotation
+        float m_SensitivityMouseX = 5f;
+        float m_SensitivityMouseY = 5f;
+        float m_LastRotationX = 0f;
+        float m_LastRotationY = 0f;
+        float m_LastSentRotationY = 0f;
+        private enum RotationState {
+            Idle = 0,
+            Rotating = 1,
+            Stopped = 2,
+        }
+        RotationState m_RotationState = RotationState.Idle;
+
+        // Current action
+        int m_SelectedAction = 1;
+        const int k_MinAction = 1;
+        const int k_MaxAction = 7;
 #if OVR
         bool m_IsMoving = false;
         float m_BaseRotationY = 0f;
@@ -139,6 +156,20 @@ namespace Unity.BossRoom.Gameplay.UserInput
         bool m_Rotated = false;
 #endif  // OVR
 #endif  // P56
+        public ActionState actionState1 { get; private set; }
+
+        public ActionState actionState2 { get; private set; }
+
+        public ActionState actionState3 { get; private set; }
+
+        public System.Action action1ModifiedCallback;
+
+        ServerCharacter m_TargetServerCharacter;
+
+        void Awake()
+        {
+            m_MainCamera = Camera.main;
+        }
 
         public override void OnNetworkSpawn()
         {
@@ -149,16 +180,71 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 return;
             }
 
+            m_ServerCharacter.TargetId.OnValueChanged += OnTargetChanged;
+            m_ServerCharacter.HeldNetworkObject.OnValueChanged += OnHeldNetworkObjectChanged;
+
+            if (CharacterClass.Skill1 &&
+                GameDataSource.Instance.TryGetActionPrototypeByID(CharacterClass.Skill1.ActionID, out var action1))
+            {
+                actionState1 = new ActionState() { actionID = action1.ActionID, selectable = true };
+            }
+            if (CharacterClass.Skill2 &&
+                GameDataSource.Instance.TryGetActionPrototypeByID(CharacterClass.Skill2.ActionID, out var action2))
+            {
+                actionState2 = new ActionState() { actionID = action2.ActionID, selectable = true };
+            }
+            if (CharacterClass.Skill3 &&
+                GameDataSource.Instance.TryGetActionPrototypeByID(CharacterClass.Skill3.ActionID, out var action3))
+            {
+                actionState3 = new ActionState() { actionID = action3.ActionID, selectable = true };
+            }
+
             m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground" });
             m_ActionLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Ground" });
 
             m_RaycastHitComparer = new RaycastHitComparer();
         }
 
-        void Awake()
+        public override void OnNetworkDespawn()
         {
-            m_ServerCharacter = GetComponent<ServerCharacter>();
-            m_MainCamera = Camera.main;
+            if (m_ServerCharacter)
+            {
+                m_ServerCharacter.TargetId.OnValueChanged -= OnTargetChanged;
+                m_ServerCharacter.HeldNetworkObject.OnValueChanged -= OnHeldNetworkObjectChanged;
+            }
+
+            if (m_TargetServerCharacter)
+            {
+                m_TargetServerCharacter.NetLifeState.LifeState.OnValueChanged -= OnTargetLifeStateChanged;
+            }
+        }
+
+        void OnTargetChanged(ulong previousValue, ulong newValue)
+        {
+            if (m_TargetServerCharacter)
+            {
+                m_TargetServerCharacter.NetLifeState.LifeState.OnValueChanged -= OnTargetLifeStateChanged;
+            }
+
+            m_TargetServerCharacter = null;
+
+            if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(newValue, out var selection) &&
+                selection.TryGetComponent(out m_TargetServerCharacter))
+            {
+                m_TargetServerCharacter.NetLifeState.LifeState.OnValueChanged += OnTargetLifeStateChanged;
+            }
+
+            UpdateAction1();
+        }
+
+        void OnHeldNetworkObjectChanged(ulong previousValue, ulong newValue)
+        {
+            UpdateAction1();
+        }
+
+        void OnTargetLifeStateChanged(LifeState previousValue, LifeState newValue)
+        {
+            UpdateAction1();
         }
 
 #if P56
@@ -179,7 +265,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
             // Save current rotation angle y for initial value.
             m_LastRotationY = transform.rotation.eulerAngles.y;
-
 #if OVR
             m_LHandTransform = GameObject.Find("LeftHandAnchor").transform;
             m_RHandTransform = GameObject.Find("RightHandAnchor").transform;
@@ -275,7 +360,51 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 }
             }
 #else   // !P56
-            if (m_MoveRequest)
+
+#if UNITY_STANDALONE
+            // For rotation
+            Quaternion rotation = new Quaternion(0f, 0f, 0f, 0f);
+            if (Cursor.lockState == CursorLockMode.Locked)
+            {
+                float yaw = m_Joystick.MouseX * m_SensitivityMouseX;
+                float pitch = m_Joystick.MouseY * m_SensitivityMouseY;
+
+                // Calculate and adjust rotation X.
+                float rotationX = m_LastRotationX + pitch;
+                if (rotationX > 90f)
+                {
+                    rotationX = 90f;
+                }
+                else if (rotationX < -90)
+                {
+                    rotationX = -90f;
+                }
+
+                // Calculate and adjust rotation Y.
+                float rotationY = m_LastRotationY + yaw;
+                float rotationDelta = Math.Abs(rotationY - m_LastSentRotationY);
+                rotation = Quaternion.Euler(0f, rotationY, 0f);
+                if (rotationDelta > 0f)
+                {
+                    // Start rotation.
+                    m_RotationState = RotationState.Rotating;
+                }
+                else
+                {
+                    // Stop rotation.
+                    if (m_RotationState == RotationState.Rotating)
+                    {
+                        m_RotationState = RotationState.Stopped;
+                    }
+                }
+
+                // Update last rotation parameters.
+                m_LastRotationX = rotationX;
+                m_LastRotationY = rotationY;
+            }
+#endif  // UNITY_STANDALONE
+
+            if (m_MoveRequest || (m_RotationState != RotationState.Idle) || m_JumpStateChanged)
             {
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
@@ -283,7 +412,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                     ActionMovement movement = new ActionMovement();
                     Vector3 estimatedPosition;
-                    if (m_Joystick.Vertical == 0f && m_Joystick.Horizontal == 0f)
+                    if (m_Joystick.Vertical == 0f && m_Joystick.Horizontal == 0f && m_UpwardVelocity == 0f)
                     {
                         movement.Position = ActionMovement.PositionNull;
                         estimatedPosition = transform.position;
@@ -305,9 +434,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #endif  // OVR
                     }
 
+                    // Restore position y on mesh.
+                    estimatedPosition.y = m_SavedPositionYOnMesh;
+
                     // Change direction of character's facing during mouse dragging.
 #if !OVR
-                    if (m_IsMouseDown)
+                    //if (m_IsMouseDown)
+                    if (true)
 #else   // !OVR
                     // Rotation by right controller stick.
                     //if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
@@ -320,10 +453,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #endif  // !OVR
                     {
 #if !OVR
-#if UNITY_STANDALONE
-                        Vector2 position = Input.mousePosition;
-#elif UNITY_ANDROID
-
+#if UNITY_ANDROID
                         Vector2 position = Vector2.zero;
                         for (int i = 0; i < Input.touchCount; i++)
                         {
@@ -334,7 +464,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                                 break;
                             }
                         }
-#endif
                         float yaw = (position.x - m_MouseDownPosition.x) / 60f;
                         float pitch = (position.y - m_MouseDownPosition.y) / 60f + m_LastPitch;
 
@@ -351,6 +480,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                         // Save current rotaion y as last rotation y;
                         m_LastRotationY = movement.Rotation.eulerAngles.y;
+#endif
 #else   // !OVR
                         // Rotation by right controller stick.
                         float deltaRotationY = 0f;
@@ -384,7 +514,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
                     // Stop character's moving and rotation if no any input.
 #if !OVR
-                    else if (ActionMovement.IsNull(movement.Position) && !m_IsMouseDown)
+                    else if (ActionMovement.IsNull(movement.Position))
 #else   // !OVR
                     else if (ActionMovement.IsNull(movement.Position) && !m_IsMouseDown && !m_IsMoving)
 #endif  // !OVR
@@ -398,8 +528,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         movement.Rotation = ActionMovement.RotationNull;
                     }
 
-                    m_LastActionMovement = movement;
-
                     // verify point is indeed on navmesh surface
                     if (NavMesh.SamplePosition(estimatedPosition,
                             out var hit,
@@ -408,37 +536,52 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     {
                         if (!ActionMovement.IsNull(movement.Position))
                         {
+                            // Move and rotate character.
                             movement.Position = hit.position;
+                            movement.Rotation = rotation;
+
+                            // Backup position y on mesh.
+                            m_SavedPositionYOnMesh = movement.Position.y;
                         }
+                        else
+                        {
+                            if (m_RotationState == RotationState.Rotating)
+                            {
+                                // Only rotate character.
+                                movement.Rotation = rotation;
+                            }
+                            else if (m_RotationState == RotationState.Stopped)
+                            {
+                                // Stop to move and rotate character.
+                                movement.Rotation = ActionMovement.RotationNull;
+                                m_RotationState = RotationState.Idle;
+                            }
+
+                            m_MoveRequest = false;
+                        }
+
+                        // Set upward velocity and reset jump state.
+                        movement.UpwardVelocity = m_UpwardVelocity;
+                        m_JumpStateChanged = false;
+
                         m_ServerCharacter.SendCharacterInputServerRpc(movement);
 
                         //Send our client only click request
                         ClientMoveEvent?.Invoke(hit.position);
 
 #if !OVR
-                        // Update character's pitch during mouse down.
-                        if (m_IsMouseDown)
-                        {
-                            m_CameraController.RotationX = m_LastPitch;
-                        }
+                        m_LastSentRotationY = m_LastRotationY;
 #endif  // !OVR
                     }
+
+                    m_LastActionMovement = movement;
                 }
             }
-#endif  // !P56
-                    }
 
-#if P56
-#if UNITY_EDITOR || DEVELOPMENT_BUILD || OVR
-        void OnGUI()
-        {
-            string text =
-                    "Position: " + m_LastActionMovement.Position.ToString() + "\n" +
-                    "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString();
-            DebugLogText.Log(text);
+            m_CameraController.RotationX = m_LastRotationX;
+            m_CameraController.RotationY = m_LastRotationY;
+#endif  // !P56
         }
-#endif
-#endif  // P56
 
         /// <summary>
         /// Perform a skill in response to some input trigger. This is the common method to which all input-driven skill plays funnel.
@@ -656,19 +799,14 @@ namespace Unity.BossRoom.Gameplay.UserInput
         /// <param name="actionID"> The action you'd like to perform. </param>
         /// <param name="triggerStyle"> What input style triggered this action. </param>
         /// <param name="targetId"> NetworkObjectId of target. </param>
-        public void RequestAction(Action action, SkillTriggerStyle triggerStyle, ulong targetId = 0)
+        public void RequestAction(ActionID actionID, SkillTriggerStyle triggerStyle, ulong targetId = 0)
         {
-            if (action == null)
-            {
-                return;
-            }
-
-            Assert.IsNotNull(GameDataSource.Instance.GetActionPrototypeByID(action.ActionID),
-                $"Action {action.name} must be contained in the Action prototypes of GameDataSource!");
+            Assert.IsNotNull(GameDataSource.Instance.GetActionPrototypeByID(actionID),
+                $"Action with actionID {actionID} must be contained in the Action prototypes of GameDataSource!");
 
             if (m_ActionRequestCount < m_ActionRequests.Length)
             {
-                m_ActionRequests[m_ActionRequestCount].RequestedActionID = action.ActionID;
+                m_ActionRequests[m_ActionRequestCount].RequestedActionID = actionID;
                 m_ActionRequests[m_ActionRequestCount].TriggerStyle = triggerStyle;
                 m_ActionRequests[m_ActionRequestCount].TargetId = targetId;
                 m_ActionRequestCount++;
@@ -677,49 +815,70 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         void Update()
         {
-#if P56 && !OVR
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Alpha1))
+            if (Input.GetKeyDown(KeyCode.Alpha1))
             {
-                RequestAction(CharacterClass.Skill1, SkillTriggerStyle.Keyboard);
+                RequestAction(actionState1.actionID, SkillTriggerStyle.Keyboard);
             }
-            else if (UnityEngine.Input.GetKeyUp(KeyCode.Alpha1))
+            else if (Input.GetKeyUp(KeyCode.Alpha1))
             {
-                RequestAction(CharacterClass.Skill1, SkillTriggerStyle.KeyboardRelease);
+                RequestAction(actionState1.actionID, SkillTriggerStyle.KeyboardRelease);
             }
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Alpha2))
+            if (Input.GetKeyDown(KeyCode.Alpha2))
             {
-                RequestAction(CharacterClass.Skill2, SkillTriggerStyle.Keyboard);
+                RequestAction(actionState2.actionID, SkillTriggerStyle.Keyboard);
             }
-            else if (UnityEngine.Input.GetKeyUp(KeyCode.Alpha2))
+            else if (Input.GetKeyUp(KeyCode.Alpha2))
             {
-                RequestAction(CharacterClass.Skill2, SkillTriggerStyle.KeyboardRelease);
+                RequestAction(actionState2.actionID, SkillTriggerStyle.KeyboardRelease);
             }
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Alpha3))
+            if (Input.GetKeyDown(KeyCode.Alpha3))
             {
-                RequestAction(CharacterClass.Skill3, SkillTriggerStyle.Keyboard);
+                RequestAction(actionState3.actionID, SkillTriggerStyle.Keyboard);
             }
-            else if (UnityEngine.Input.GetKeyUp(KeyCode.Alpha3))
+            else if (Input.GetKeyUp(KeyCode.Alpha3))
             {
-                RequestAction(CharacterClass.Skill3, SkillTriggerStyle.KeyboardRelease);
+                RequestAction(actionState3.actionID, SkillTriggerStyle.KeyboardRelease);
             }
 
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Alpha5))
+            if (Input.GetKeyDown(KeyCode.Alpha5))
             {
-                RequestAction(GameDataSource.Instance.Emote1ActionPrototype, SkillTriggerStyle.Keyboard);
+                RequestAction(GameDataSource.Instance.Emote1ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
             }
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Alpha6))
+            if (Input.GetKeyDown(KeyCode.Alpha6))
             {
-                RequestAction(GameDataSource.Instance.Emote2ActionPrototype, SkillTriggerStyle.Keyboard);
+                RequestAction(GameDataSource.Instance.Emote2ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
             }
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Alpha7))
+            if (Input.GetKeyDown(KeyCode.Alpha7))
             {
-                RequestAction(GameDataSource.Instance.Emote3ActionPrototype, SkillTriggerStyle.Keyboard);
+                RequestAction(GameDataSource.Instance.Emote3ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
             }
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Alpha8))
+            if (Input.GetKeyDown(KeyCode.Alpha8))
             {
-                RequestAction(GameDataSource.Instance.Emote4ActionPrototype, SkillTriggerStyle.Keyboard);
+                RequestAction(GameDataSource.Instance.Emote4ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
             }
-#endif  // P56 && !OVR
+
+#if P56
+            // For jump
+            if (UnityEngine.Input.GetKeyDown(KeyCode.Space))
+            {
+                m_UpwardVelocity = m_UpwardPower;
+                m_JumpStateChanged = true;
+            }
+            else if (UnityEngine.Input.GetKeyUp(KeyCode.Space))
+            {
+                m_UpwardVelocity = 0f;
+                m_JumpStateChanged = true;
+            }
+
+            // Change mouse cursor loack state. 
+            if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (Cursor.lockState == CursorLockMode.Locked)
+                {
+                    Cursor.lockState = CursorLockMode.None; // Show mouse cursor.
+                }
+            }
+#endif  // P56
 
 #if !P56
             if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
@@ -727,16 +886,16 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 //IsPointerOverGameObject() is a simple way to determine if the mouse is over a UI element. If it is, we don't perform mouse input logic,
                 //to model the button "blocking" mouse clicks from falling through and interacting with the world.
 
-                if (UnityEngine.Input.GetMouseButtonDown(1))
+                if (Input.GetMouseButtonDown(1))
                 {
-                    RequestAction(CharacterClass.Skill1, SkillTriggerStyle.MouseClick);
+                    RequestAction(CharacterClass.Skill1.ActionID, SkillTriggerStyle.MouseClick);
                 }
 
-                if (UnityEngine.Input.GetMouseButtonDown(0))
+                if (Input.GetMouseButtonDown(0))
                 {
-                    RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype, SkillTriggerStyle.MouseClick);
+                    RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
                 }
-                else if (UnityEngine.Input.GetMouseButton(0))
+                else if (Input.GetMouseButton(0))
                 {
                     m_MoveRequest = true;
                 }
@@ -747,41 +906,103 @@ namespace Unity.BossRoom.Gameplay.UserInput
             if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f)
 #else   // !OVR
             // Start moving by input from Joystick or right controller stick.
-            if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f ||
-                //OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
-                Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) > 0.5f)
+            if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f || Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) > 0.5f)
 #endif  // !OVR
             {
                 m_MoveRequest = true;
-            }
-#if OVR
-            if (Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) < 0.5f)
-            {
-                m_Rotated = false;
-            }
-#endif  // OVR
 
+                // If mouse cursor is not locked, lock it.
+                if (Cursor.lockState == CursorLockMode.None)
+                {
+                    Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
+                }
+            }
+
+#if !OVR
             // Ignore mouse down (or touch) if the position is over UI game object.
 #if UNITY_STANDALONE
-            if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
+            //if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
+            if (!EventSystem.current.IsPointerOverGameObject())
             {
-                // Start rotation of character's facing by mouse button down.
-                if (UnityEngine.Input.GetMouseButtonDown(0))
+                //
+                if (UnityEngine.Input.GetMouseButtonDown(1) && m_CurrentSkillInput == null)
                 {
-                    RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype, SkillTriggerStyle.MouseClick);
-                    m_MouseDownPosition = Input.mousePosition;
-                    m_IsMouseDown = true;
-                    m_MoveRequest = true;
+                    switch (m_SelectedAction)
+                    {
+                        case 1:
+                            RequestAction(actionState1.actionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 2:
+                            RequestAction(actionState2.actionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 3:
+                            RequestAction(actionState3.actionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 4:
+                            RequestAction(GameDataSource.Instance.Emote1ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 5:
+                            RequestAction(GameDataSource.Instance.Emote2ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 6:
+                            RequestAction(GameDataSource.Instance.Emote3ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 7:
+                            RequestAction(GameDataSource.Instance.Emote4ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        default:
+                            break;
+                    }
                 }
-                // Stop rotation of character's facing by mouse bottun up.
-                if (UnityEngine.Input.GetMouseButtonUp(0))
+                else if (UnityEngine.Input.GetMouseButtonUp(1))
                 {
-                    m_MouseDownPosition = Vector3.zero;
-                    m_IsMouseDown = false;
+                    switch (m_SelectedAction)
+                    {
+                        case 1:
+                            RequestAction(actionState1.actionID, SkillTriggerStyle.KeyboardRelease);
+                            break;
+                        case 2:
+                            RequestAction(actionState2.actionID, SkillTriggerStyle.KeyboardRelease);
+                            break;
+                        case 3:
+                            RequestAction(actionState3.actionID, SkillTriggerStyle.KeyboardRelease);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
+                if (UnityEngine.Input.GetMouseButtonDown(0) && m_CurrentSkillInput == null)
+                {
+                    RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
+
+                    // If mouse cursor is not locked, lock it.
+                    if (Cursor.lockState == CursorLockMode.None)
+                    {
+                        Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
+                    }
+                }
+            }
+
+            // Update selected action.
+            float wheel = Input.GetAxis("Mouse ScrollWheel");
+            if (wheel > 0f)
+            {
+                m_SelectedAction++;
+                if (m_SelectedAction > k_MaxAction)
+                {
+                    m_SelectedAction = k_MinAction;
+                }
+            }
+            else if (wheel < 0)
+            {
+                m_SelectedAction--;
+                if (m_SelectedAction < k_MinAction)
+                {
+                    m_SelectedAction = k_MaxAction;
                 }
             }
 #elif UNITY_ANDROID
-#if !OVR
             for (int i = 0; i < Input.touchCount; i++)
             {
                 Touch touch = Input.GetTouch(i);
@@ -805,7 +1026,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
                 }
             }
+#endif  // UNITY_STANDALONE || UNITY_ANDROID
 #else   // !OVR
+            if (Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) < 0.5f)
+            {
+                m_Rotated = false;
+            }
+
             // Right index trigger
             if (OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger))
             {
@@ -849,17 +1076,96 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 RequestAction(CharacterClass.Skill3, SkillTriggerStyle.KeyboardRelease);
                 m_IsMouseDown = false;
             }
-#endif  // !OVR
-#endif  // UNITY_STANDALONE || UNITY_ANDROID
 
-#if !OVR
-            // Set current rotation y to the last rotation y during mouse is not down.
-            if (!m_IsMouseDown)
+            // For jump
+            // Right index trigger
+            if (OVRInput.GetDown(OVRInput.RawButton.LIndexTrigger))
             {
-                m_LastRotationY = transform.rotation.eulerAngles.y;
+                m_UpwardVelocity = m_UpwardPower;
+                m_JumpStateChanged = true;
+            }
+            else if (OVRInput.GetUp(OVRInput.RawButton.LIndexTrigger))
+            {
+                m_UpwardVelocity = 0f;
+                m_JumpStateChanged = true;
             }
 #endif  // !OVR
 #endif  // !P56
+        }
+
+#if P56
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || OVR
+        void OnGUI()
+        {
+            string text =
+                    "Position: " + m_LastActionMovement.Position.ToString() + "\n" +
+                    "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString() + "\n" +
+                    "UpwardVelocity: " + m_UpwardVelocity.ToString() + "\n" +
+                    "SelectedAction: " + m_SelectedAction;
+            DebugLogText.Log(text);
+        }
+#endif
+#endif  // P56
+
+        void UpdateAction1()
+        {
+            var isHoldingNetworkObject =
+                NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(m_ServerCharacter.HeldNetworkObject.Value,
+                    out var heldNetworkObject);
+
+            NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(m_ServerCharacter.TargetId.Value,
+                out var selection);
+
+            var isSelectable = true;
+            if (isHoldingNetworkObject)
+            {
+                // show drop!
+
+                actionState1.actionID = GameDataSource.Instance.DropActionPrototype.ActionID;
+            }
+            else if ((m_ServerCharacter.TargetId.Value != 0
+                    && selection != null
+                    && selection.TryGetComponent(out PickUpState pickUpState))
+               )
+            {
+                // special case: targeting a pickup-able item or holding a pickup object
+
+                actionState1.actionID = GameDataSource.Instance.PickUpActionPrototype.ActionID;
+            }
+            else if (m_ServerCharacter.TargetId.Value != 0
+                && selection != null
+                && selection.NetworkObjectId != m_ServerCharacter.NetworkObjectId
+                && selection.TryGetComponent(out ServerCharacter charState)
+                && !charState.IsNpc)
+            {
+                // special case: when we have a player selected, we change the meaning of the basic action
+                // we have another player selected! In that case we want to reflect that our basic Action is a Revive, not an attack!
+                // But we need to know if the player is alive... if so, the button should be disabled (for better player communication)
+
+                actionState1.actionID = GameDataSource.Instance.ReviveActionPrototype.ActionID;
+                isSelectable = charState.NetLifeState.LifeState.Value != LifeState.Alive;
+            }
+            else
+            {
+                actionState1.SetActionState(CharacterClass.Skill1.ActionID);
+            }
+
+            actionState1.selectable = isSelectable;
+
+            action1ModifiedCallback?.Invoke();
+        }
+
+        public class ActionState
+        {
+            public ActionID actionID { get; internal set; }
+
+            public bool selectable { get; internal set; }
+
+            internal void SetActionState(ActionID newActionID, bool isSelectable = true)
+            {
+                actionID = newActionID;
+                selectable = isSelectable;
+            }
         }
     }
 }

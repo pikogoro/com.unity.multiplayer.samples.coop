@@ -12,8 +12,9 @@ namespace Unity.BossRoom.Gameplay.Actions
     /// </summary>
     public struct ActionMovement : INetworkSerializable
     {
-        public Vector3 Position;            //position of character.
-        public Quaternion Rotation;         //rotation of character's facing.
+        public Vector3 Position;            // position of character.
+        public Quaternion Rotation;         // rotation of character's facing.
+        public float UpwardVelocity;        // upward velocity of character.
 
         public static Vector3 PositionNull
         {
@@ -30,7 +31,8 @@ namespace Unity.BossRoom.Gameplay.Actions
         {
             None = 0,
             HasPosition = 1,
-            HasRotation = 1 << 1
+            HasRotation = 1 << 1,
+            HasUpwardVelocity = 1 << 2
         }
 
         public static bool IsNull(Vector3 value)
@@ -54,6 +56,10 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 flags |= PackFlags.HasRotation;
             }
+            if (UpwardVelocity != 0f)
+            {
+                flags |= PackFlags.HasUpwardVelocity;
+            }
 
             return flags;
         }
@@ -75,6 +81,10 @@ namespace Unity.BossRoom.Gameplay.Actions
             if ((flags & PackFlags.HasRotation) != 0)
             {
                 serializer.SerializeValue(ref Rotation);
+            }
+            if ((flags & PackFlags.HasUpwardVelocity) != 0)
+            {
+                serializer.SerializeValue(ref UpwardVelocity);
             }
         }
     }
