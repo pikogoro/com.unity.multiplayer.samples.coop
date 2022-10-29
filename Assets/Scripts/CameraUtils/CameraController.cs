@@ -109,15 +109,18 @@ namespace Unity.BossRoom.CameraUtils
         }
 
 #if P56
-        void FixedUpdate()
+        private void Update()
         {
-#if !OVR
             // Change character's view.
             if (Input.GetKeyDown(KeyCode.Backslash))
             {
                 m_IsFPSView = !m_IsFPSView;
             }
+        }
 
+        void FixedUpdate()
+        {
+#if !OVR
             // Update character's pitch.
             Vector3 targetPosition;
             Quaternion targetRotation;
@@ -132,11 +135,11 @@ namespace Unity.BossRoom.CameraUtils
                     //m_LerpedPosition = m_CamTransform.position;
                     //m_LerpedRotation = m_CamTransform.rotation;
                 }
+                //targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
+                targetRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
                 //targetPosition = transform.position + new Vector3(0.0f, 1.3f, 0f);
                 //targetPosition += transform.forward * 0.3f;
                 targetPosition = new Vector3(0.0f, 1.3f, 0.3f);
-                //targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
-                targetRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
             }
             else
             {
@@ -148,8 +151,10 @@ namespace Unity.BossRoom.CameraUtils
                     //m_LerpedPosition = m_CamTransform.localPosition;
                     //m_LerpedRotation = m_CamTransform.localRotation;
                 }
-                targetPosition = new Vector3(0f, 3f - m_RotationX / 30f, 3f * Math.Abs(m_RotationX) / 30f - 5f);
+                //targetRotation = Quaternion.Euler(15f - m_RotationX, m_RotationY, 0f);
                 targetRotation = Quaternion.Euler(15f - m_RotationX, 0f, 0f);
+                //targetPosition = new Vector3(0f, 3f - m_RotationX / 30f, 3f * Math.Abs(m_RotationX) / 30f - 5f);
+                targetPosition = new Vector3(0f, 2f, -3f);
             }
 
             // Lerp of character's view.

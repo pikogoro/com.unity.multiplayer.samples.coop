@@ -143,6 +143,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
             Stopped = 2,
         }
         RotationState m_RotationState = RotationState.Idle;
+
+        // Current action
+        int m_SelectedAction = 1;
+        const int k_MinAction = 1;
+        const int k_MaxAction = 7;
 #if OVR
         bool m_IsMoving = false;
         float m_BaseRotationY = 0f;
@@ -916,19 +921,59 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if !OVR
             // Ignore mouse down (or touch) if the position is over UI game object.
 #if UNITY_STANDALONE
-            if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
+            //if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
+            if (!EventSystem.current.IsPointerOverGameObject())
             {
                 //
-                if (UnityEngine.Input.GetMouseButtonDown(1))
+                if (UnityEngine.Input.GetMouseButtonDown(1) && m_CurrentSkillInput == null)
                 {
-                    //RequestAction(CharacterClass.Skill1, SkillTriggerStyle.MouseClick);
-                    RequestAction(CharacterClass.Skill1.ActionID, SkillTriggerStyle.MouseClick);
+                    switch (m_SelectedAction)
+                    {
+                        case 1:
+                            RequestAction(actionState1.actionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 2:
+                            RequestAction(actionState2.actionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 3:
+                            RequestAction(actionState3.actionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 4:
+                            RequestAction(GameDataSource.Instance.Emote1ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 5:
+                            RequestAction(GameDataSource.Instance.Emote2ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 6:
+                            RequestAction(GameDataSource.Instance.Emote3ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        case 7:
+                            RequestAction(GameDataSource.Instance.Emote4ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                else if (UnityEngine.Input.GetMouseButtonUp(1))
+                {
+                    switch (m_SelectedAction)
+                    {
+                        case 1:
+                            RequestAction(actionState1.actionID, SkillTriggerStyle.KeyboardRelease);
+                            break;
+                        case 2:
+                            RequestAction(actionState2.actionID, SkillTriggerStyle.KeyboardRelease);
+                            break;
+                        case 3:
+                            RequestAction(actionState3.actionID, SkillTriggerStyle.KeyboardRelease);
+                            break;
+                        default:
+                            break;
+                    }
                 }
 
-                // Start rotation of character's facing by mouse button down.
-                if (UnityEngine.Input.GetMouseButtonDown(0))
+                if (UnityEngine.Input.GetMouseButtonDown(0) && m_CurrentSkillInput == null)
                 {
-                    //RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype, SkillTriggerStyle.MouseClick);
                     RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
 
                     // If mouse cursor is not locked, lock it.
@@ -936,6 +981,25 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     {
                         Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
                     }
+                }
+            }
+
+            // Update selected action.
+            float wheel = Input.GetAxis("Mouse ScrollWheel");
+            if (wheel > 0f)
+            {
+                m_SelectedAction++;
+                if (m_SelectedAction > k_MaxAction)
+                {
+                    m_SelectedAction = k_MinAction;
+                }
+            }
+            else if (wheel < 0)
+            {
+                m_SelectedAction--;
+                if (m_SelectedAction < k_MinAction)
+                {
+                    m_SelectedAction = k_MaxAction;
                 }
             }
 #elif UNITY_ANDROID
@@ -1036,7 +1100,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
             string text =
                     "Position: " + m_LastActionMovement.Position.ToString() + "\n" +
                     "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString() + "\n" +
-                    "UpwardVelocity: " + m_UpwardVelocity.ToString();
+                    "UpwardVelocity: " + m_UpwardVelocity.ToString() + "\n" +
+                    "SelectedAction: " + m_SelectedAction;
             DebugLogText.Log(text);
         }
 #endif
