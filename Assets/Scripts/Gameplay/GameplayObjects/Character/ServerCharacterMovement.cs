@@ -289,7 +289,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// </summary>
         private Vector3 GetGroundPosition(Vector3 position)
         {
-            Vector3 groundPosition = position;
+            Vector3 groundPosition = Vector3.zero;
             var ray = new Ray(position, Vector3.down);
             var groundHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_GroundRaycastDistance, m_GroundLayerMask);
 
