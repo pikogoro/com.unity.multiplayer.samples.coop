@@ -1,6 +1,9 @@
 using Unity.BossRoom.Gameplay.GameplayObjects;
 using UnityEngine;
 using UnityEngine.AI;
+#if P56
+using System;
+#endif  // P56
 
 namespace Unity.BossRoom.Gameplay.Actions
 {
@@ -34,9 +37,38 @@ namespace Unity.BossRoom.Gameplay.Actions
         // this is also the same height as the NavMesh baked in-game
         static readonly Plane k_Plane = new Plane(Vector3.up, 0f);
 
+#if P56
+        const float k_GroundRaycastDistance = 100f;
+        readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
+        LayerMask m_GroundLayerMask;
+        RaycastHitComparer m_RaycastHitComparer = null;
+#endif  // P56
 #if P56 && OVR
         Transform m_RHandTransform = null;
 #endif  // P56 && OVR
+
+#if P56
+        /// <summary>
+        /// Get ground position by using raycast.
+        /// </summary>
+        private Vector3 GetGroundPosition(Ray ray)
+        {
+            Vector3 groundPosition = Vector3.zero;
+            var groundHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_GroundRaycastDistance, m_GroundLayerMask);
+            if (groundHits > 0)
+            {
+                if (groundHits > 1)
+                {
+                    // sort hits by distance
+                    Array.Sort(k_CachedHit, 0, groundHits, m_RaycastHitComparer);
+                }
+
+                groundPosition = k_CachedHit[0].point;
+            }
+
+            return groundPosition;
+        }
+#endif  // P56
 
         void Start()
         {
@@ -44,23 +76,33 @@ namespace Unity.BossRoom.Gameplay.Actions
 
             transform.localScale = new Vector3(radius * 2, radius * 2, radius * 2);
             m_Camera = Camera.main;
+#if P56
+            m_RaycastHitComparer = new RaycastHitComparer();
+            m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground" });
+#endif  // P56
 #if P56 && OVR
             m_RHandTransform = GameObject.Find("RightHandAnchor").transform;
 #endif  // P56 && OVR
         }
 
-            void Update()
+        void Update()
         {
-#if !P56 || !OVR
+#if !P56
             if (PlaneRaycast(k_Plane, m_Camera.ScreenPointToRay(Input.mousePosition), out Vector3 pointOnPlane) &&
                 NavMesh.SamplePosition(pointOnPlane, out m_NavMeshHit, 2f, NavMesh.AllAreas))
-#else   // !P56 || !OVR
+#else   // !P56
+#if !OVR
+            var ray = new Ray(m_Camera.transform.position, m_Camera.transform.forward);
+            var groundPosition = GetGroundPosition(ray);
+            if (groundPosition != Vector3.zero && NavMesh.SamplePosition(groundPosition, out m_NavMeshHit, 2f, NavMesh.AllAreas))
+#else   // !OVR
             var ray = new Ray(m_RHandTransform.position, m_RHandTransform.forward);
             if (PlaneRaycast(k_Plane, ray, out Vector3 pointOnPlane) &&
                 NavMesh.SamplePosition(pointOnPlane, out m_NavMeshHit, 2f, NavMesh.AllAreas))
-#endif  // !P56 || !OVR
+#endif  // !OVR
+#endif  // !P56
             {
-                transform.position = m_NavMeshHit.position;
+                    transform.position = m_NavMeshHit.position;
             }
 
             float range = GameDataSource.Instance.GetActionPrototypeByID(m_ActionPrototypeID).Config.Range;

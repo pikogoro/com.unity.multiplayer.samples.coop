@@ -139,8 +139,7 @@ namespace Unity.BossRoom.Navigation
 #if !P56
         public Vector3 MoveAlongPath(float distance)
 #else   // !P56
-        // "position" is character's position on NavMesh.
-        public Vector3 MoveAlongPath(float distance, Vector3 position)
+        public Vector3 MoveAlongPath(float distance, bool isGrounded)
 #endif  // !P56
         {
             if (m_TransformTarget != null)
@@ -153,21 +152,44 @@ namespace Unity.BossRoom.Navigation
                 return Vector3.zero;
             }
 
-#if !P56
             var currentPredictedPosition = m_Agent.transform.position;
-#else   // !P56
-            var currentPredictedPosition = position;
-#endif  // !P56
             var remainingDistance = distance;
+#if P56
+            float positionY = currentPredictedPosition.y;
+#endif  // P56
 
             while (remainingDistance > 0)
             {
+#if !P56
                 var toNextPathPoint = m_Path[0] - currentPredictedPosition;
+#else   //!P56
+                Vector3 toNextPathPoint;
+
+                if (isGrounded)
+                {
+                    toNextPathPoint = m_Path[0] - currentPredictedPosition;
+                }
+                else
+                {
+                    // If not grounded, ignore position y to calculate distance.
+                    Vector3 path = m_Path[0];
+                    path.y = positionY;
+                    toNextPathPoint = path - currentPredictedPosition;
+
+                }
+#endif  // !P56
 
                 // If end point is closer then distance to move
                 if (toNextPathPoint.sqrMagnitude < remainingDistance * remainingDistance)
                 {
                     currentPredictedPosition = m_Path[0];
+#if P56
+                    if (!isGrounded)
+                    {
+                        // If not grounded, ignore position y to calculate distance.
+                        currentPredictedPosition.y = positionY;
+                    }
+#endif  // P56
                     m_Path.RemoveAt(0);
                     remainingDistance -= toNextPathPoint.magnitude;
                 }
@@ -179,11 +201,7 @@ namespace Unity.BossRoom.Navigation
                 break;
             }
 
-#if !P56
             return currentPredictedPosition - m_Agent.transform.position;
-#else   // !P56
-            return currentPredictedPosition - position;
-#endif  // !P56
         }
 
         void OnTargetPositionChanged(Vector3 newTarget)
