@@ -13,7 +13,6 @@ using Unity.BossRoom.Gameplay.UI;
 using Unity.BossRoom.CameraUtils;
 using Unity.BossRoom.Utils;
 #endif  // P56
-using Action = Unity.BossRoom.Gameplay.Actions.Action;
 
 namespace Unity.BossRoom.Gameplay.UserInput
 {
@@ -128,8 +127,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
         // For jump
         float m_UpwardPower = 8f;
         float m_UpwardVelocity = 0f;
-        float m_SavedPositionYOnMesh = 0f;  // Saved position y on mesh
         bool m_JumpStateChanged = false;
+        const float k_GroundRaycastDistance = 100f;
 
         // For rotation
         float m_SensitivityMouseX = 5f;
@@ -144,7 +143,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
         }
         RotationState m_RotationState = RotationState.Idle;
 
-        // Current action
+        // For current action selection
         int m_SelectedAction = 1;
         const int k_MinAction = 1;
         const int k_MaxAction = 7;
@@ -260,10 +259,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #endif
             m_Joystick = joystick.GetComponent<Joystick>();
 
-            // NetworkStats is used to get RTT.
+            // To get RTT using NetworkStats.
             m_NetworkStats = GetComponent<NetworkStats>();
 
-            // Save current rotation angle y for initial value.
+            // Save current rotation angle y as initial value.
             m_LastRotationY = transform.rotation.eulerAngles.y;
 #if OVR
             m_LHandTransform = GameObject.Find("LeftHandAnchor").transform;
@@ -284,6 +283,31 @@ namespace Unity.BossRoom.Gameplay.UserInput
             ActionInputEvent?.Invoke(action);
             m_ServerCharacter.RecvDoActionServerRPC(action);
         }
+
+#if P56
+        /// <summary>
+        /// Get ground position by using raycast.
+        /// </summary>
+        private Vector3 GetGroundPosition(Vector3 position)
+        {
+            Vector3 groundPosition = position;
+            var ray = new Ray(position, Vector3.down);
+            var groundHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_GroundRaycastDistance, m_GroundLayerMask);
+
+            if (groundHits > 0)
+            {
+                if (groundHits > 1)
+                {
+                    // sort hits by distance
+                    Array.Sort(k_CachedHit, 0, groundHits, m_RaycastHitComparer);
+                }
+
+                groundPosition = k_CachedHit[0].point;
+            }
+
+            return groundPosition;
+        }
+#endif  // P56
 
         void FixedUpdate()
         {
@@ -369,7 +393,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 float yaw = m_Joystick.MouseX * m_SensitivityMouseX;
                 float pitch = m_Joystick.MouseY * m_SensitivityMouseY;
 
-                // Calculate and adjust rotation X.
+                // Calculate rotation X.
                 float rotationX = m_LastRotationX + pitch;
                 if (rotationX > 90f)
                 {
@@ -380,7 +404,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     rotationX = -90f;
                 }
 
-                // Calculate and adjust rotation Y.
+                // Calculate otation Y.
                 float rotationY = m_LastRotationY + yaw;
                 float rotationDelta = Math.Abs(rotationY - m_LastSentRotationY);
                 rotation = Quaternion.Euler(0f, rotationY, 0f);
@@ -391,9 +415,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 }
                 else
                 {
-                    // Stop rotation.
                     if (m_RotationState == RotationState.Rotating)
                     {
+                        // If not in rotating, stop rotation.
                         m_RotationState = RotationState.Stopped;
                     }
                 }
@@ -434,13 +458,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #endif  // OVR
                     }
 
-                    // Restore position y on mesh.
-                    estimatedPosition.y = m_SavedPositionYOnMesh;
-
                     // Change direction of character's facing during mouse dragging.
 #if !OVR
                     //if (m_IsMouseDown)
-                    if (true)
+                    //if (true)
 #else   // !OVR
                     // Rotation by right controller stick.
                     //if (OVRInput.GetDown(OVRInput.RawButton.RThumbstickRight) || OVRInput.GetDown(OVRInput.RawButton.RThumbstickLeft))
@@ -510,49 +531,48 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         float yaw = m_LHandTransform.rotation.eulerAngles.y;
                         movement.Rotation = Quaternion.Euler(0f, yaw, 0f);
 #endif  // !OVR
-
                     }
+
                     // Stop character's moving and rotation if no any input.
 #if !OVR
-                    else if (ActionMovement.IsNull(movement.Position))
+                    //else if (ActionMovement.IsNull(movement.Position))
 #else   // !OVR
                     else if (ActionMovement.IsNull(movement.Position) && !m_IsMouseDown && !m_IsMoving)
 #endif  // !OVR
-                    {
-                        movement.Rotation = ActionMovement.RotationNull;
-                        m_MoveRequest = false;
-                    }
+                    //{
+                    //    movement.Rotation = ActionMovement.RotationNull;
+                    //    m_MoveRequest = false;
+                    //}
                     // Anything else, not change direction of character's facing.
-                    else
-                    {
-                        movement.Rotation = ActionMovement.RotationNull;
-                    }
+                    //else
+                    //{
+                    //    movement.Rotation = ActionMovement.RotationNull;
+                    //}
+
+                    Vector3 groundPosition = GetGroundPosition(estimatedPosition + new Vector3(0f, 3f, 0f));
 
                     // verify point is indeed on navmesh surface
-                    if (NavMesh.SamplePosition(estimatedPosition,
+                    if (NavMesh.SamplePosition(groundPosition,
                             out var hit,
                             k_MaxNavMeshDistance,
                             NavMesh.AllAreas))
                     {
                         if (!ActionMovement.IsNull(movement.Position))
                         {
-                            // Move and rotate character.
+                            // If position is not null, move and rotate character.
                             movement.Position = hit.position;
                             movement.Rotation = rotation;
-
-                            // Backup position y on mesh.
-                            m_SavedPositionYOnMesh = movement.Position.y;
                         }
                         else
                         {
                             if (m_RotationState == RotationState.Rotating)
                             {
-                                // Only rotate character.
+                                // If in rotating, rotate character.
                                 movement.Rotation = rotation;
                             }
                             else if (m_RotationState == RotationState.Stopped)
                             {
-                                // Stop to move and rotate character.
+                                // If rotation is stopped, stop moving and rotating character.
                                 movement.Rotation = ActionMovement.RotationNull;
                                 m_RotationState = RotationState.Idle;
                             }
@@ -578,6 +598,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 }
             }
 
+            // Update rotation of camera.
             m_CameraController.RotationX = m_LastRotationX;
             m_CameraController.RotationY = m_LastRotationY;
 #endif  // !P56
@@ -621,7 +642,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 // Choose the closest object. 
                 if (numHits > 1)
                 {
-                    // sort hits by distance
+                    // Sort hits by distance.
                     Array.Sort(k_CachedHit, 0, numHits, m_RaycastHitComparer);
                 }
 #endif  // P56
@@ -654,7 +675,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if !P56
                 PopulateSkillRequest(k_CachedHit[0].point, actionID, ref data);
 #else   // !P56
-                // Set direction to the character's facing direction if target is nothing.
+                // If target is nothing, set direction to the character's facing.
                 PopulateSkillRequest(transform.position + transform.forward, actionID, ref data, false);
 #endif  // !P56
 
@@ -763,7 +784,14 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     else
                     {
 #if !OVR
-                        resultData.Direction = m_MainCamera.transform.forward.normalized;
+                        if (m_CameraController.IsFPSView)
+                        {
+                            resultData.Direction = m_MainCamera.transform.forward.normalized;
+                        }
+                        else
+                        {
+                            resultData.Direction = Quaternion.Euler(15f, 0f, 0f) * m_MainCamera.transform.forward.normalized;
+                        }
 #else   // !OVR
                         resultData.Direction = m_RHandTransform.forward.normalized;
 #endif  // !OVR
@@ -870,7 +898,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 m_JumpStateChanged = true;
             }
 
-            // Change mouse cursor loack state. 
+            // Change mouse cursor lock state. 
             if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
             {
                 if (Cursor.lockState == CursorLockMode.Locked)
@@ -902,29 +930,19 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
 #else   // !P56
 #if !OVR
-            // Start moving by input from Joystick.
             if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f)
 #else   // !OVR
-            // Start moving by input from Joystick or right controller stick.
             if (m_Joystick.Vertical != 0f || m_Joystick.Horizontal != 0f || Math.Abs(OVRInput.Get(OVRInput.RawAxis2D.RThumbstick).x) > 0.5f)
 #endif  // !OVR
             {
                 m_MoveRequest = true;
-
-                // If mouse cursor is not locked, lock it.
-                if (Cursor.lockState == CursorLockMode.None)
-                {
-                    Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
-                }
             }
 
 #if !OVR
-            // Ignore mouse down (or touch) if the position is over UI game object.
 #if UNITY_STANDALONE
-            //if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
             if (!EventSystem.current.IsPointerOverGameObject())
             {
-                //
+                // Handle mouse click event on right mouse button.
                 if (UnityEngine.Input.GetMouseButtonDown(1) && m_CurrentSkillInput == null)
                 {
                     switch (m_SelectedAction)
@@ -972,6 +990,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
                 }
 
+                // Handle mouse click event on left mouse button.
                 if (UnityEngine.Input.GetMouseButtonDown(0) && m_CurrentSkillInput == null)
                 {
                     RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
@@ -984,7 +1003,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 }
             }
 
-            // Update selected action.
+            // Change selected action by mouse wheel.
             float wheel = Input.GetAxis("Mouse ScrollWheel");
             if (wheel > 0f)
             {

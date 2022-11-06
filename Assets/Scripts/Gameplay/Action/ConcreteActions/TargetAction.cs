@@ -71,6 +71,15 @@ namespace Unity.BossRoom.Gameplay.Actions
         {
             if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetId, out var targetObject))
             {
+#if P56
+                if (!parent.IsNpc)
+                {
+                    // If player character, do not face to target but lock on it.
+                    parent.Movement.LockOnTransform(targetObject.transform);
+                    return;
+                }
+#endif  // P56
+
                 Vector3 targetObjectPosition;
 
                 if (targetObject.TryGetComponent(out ServerCharacter serverCharacter))
@@ -89,11 +98,6 @@ namespace Unity.BossRoom.Gameplay.Actions
                 {
                     parent.physicsWrapper.Transform.forward = diff;
                 }
-
-#if P56
-                // "Lock on" the target.
-                parent.Movement.LockOnTransform(targetObject.transform);
-#endif  // P56
             }
         }
     }
