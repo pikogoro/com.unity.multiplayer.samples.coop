@@ -93,7 +93,7 @@ namespace Unity.BossRoom.CameraUtils
             m_CamTransform.localPosition = new Vector3(0f, 1.3f, 0.3f);
 
             m_LerpedPosition = m_CamTransform.localPosition;
-            m_LerpedRotation = m_CamTransform.localRotation;
+            m_LerpedRotation = m_CamTransform.rotation; // rotation is not local.
 #else   // !OVR
             m_CamTransform = GameObject.Find("OVRCameraRig").transform;
 
@@ -131,7 +131,7 @@ namespace Unity.BossRoom.CameraUtils
                     m_BoneHead.SetActive(false);
                 }
                 targetPosition = new Vector3(0f, 1.3f, 0.3f);
-                targetRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
+                targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
             }
             else
             {
@@ -140,9 +140,8 @@ namespace Unity.BossRoom.CameraUtils
                 {
                     m_BoneHead.SetActive(true);
                 }
-                //targetPosition = new Vector3(0f, 3f, -3f);
                 targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 3f, -3f);
-                targetRotation = Quaternion.Euler(15f - m_RotationX, 0f, 0f);
+                targetRotation = Quaternion.Euler(15f - m_RotationX, m_RotationY, 0f);
             }
 
             // Lerp of character's view.
@@ -150,7 +149,7 @@ namespace Unity.BossRoom.CameraUtils
             m_LerpedRotation = m_RotationLerper.LerpRotation(m_LerpedRotation, targetRotation);
 
             m_CamTransform.localPosition = m_LerpedPosition;
-            m_CamTransform.localRotation = m_LerpedRotation;
+            m_CamTransform.rotation = m_LerpedRotation; // rotaion is not local.
 #else   // !OVR
             // Update character's pitch.
             Vector3 targetPosition = transform.position + new Vector3(0f, 1.3f, 0f);

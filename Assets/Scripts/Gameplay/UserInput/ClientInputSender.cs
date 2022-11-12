@@ -90,7 +90,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
         /// List of ActionRequests that have been received since the last FixedUpdate ran. This is a static array, to avoid allocs, and
         /// because we don't really want to let this list grow indefinitely.
         /// </summary>
+#if !P56
         readonly ActionRequest[] m_ActionRequests = new ActionRequest[5];
+#else   // !P56
+        readonly ActionRequest[] m_ActionRequests = new ActionRequest[5];
+#endif  // !P56
 
         /// <summary>
         /// Number of ActionRequests that have been queued since the last FixedUpdate.
@@ -408,7 +412,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 float rotationY = m_LastRotationY + yaw;
                 float rotationDelta = Math.Abs(rotationY - m_LastSentRotationY);
                 rotation = Quaternion.Euler(0f, rotationY, 0f);
-                if (rotationDelta > 0f)
+                if (rotationDelta > 30f)
                 {
                     // Start rotation.
                     m_RotationState = RotationState.Rotating;
@@ -629,11 +633,16 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 int numHits = 0;
                 if (triggerStyle == SkillTriggerStyle.MouseClick)
                 {
-#if !P56 || !OVR
+#if !P56
                     var ray = m_MainCamera.ScreenPointToRay(UnityEngine.Input.mousePosition);
-#else   // !P56 || !OVR
+#else   // !P56
+#if !OVR
+                    var ray = m_MainCamera.ScreenPointToRay(UnityEngine.Input.mousePosition);
+                    //var ray = new Ray(m_MainCamera.transform.position, m_MainCamera.transform.forward.normalized);
+#else   // !OVR
                     var ray = new Ray(m_RHandTransform.position, m_RHandTransform.forward);
-#endif  // !P56 || !OVR
+#endif  // !OVR
+#endif  // !P56
                     numHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_MouseInputRaycastDistance, m_ActionLayerMask);
                 }
 
@@ -790,7 +799,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         }
                         else
                         {
-                            resultData.Direction = Quaternion.Euler(15f, 0f, 0f) * m_MainCamera.transform.forward.normalized;
+                            // [TBD] temporary aiming method for TSP.
+                            Vector3 vector = m_MainCamera.transform.forward * 50f + new Vector3(0f, 3f, 0f);
+                            resultData.Direction = vector.normalized;
                         }
 #else   // !OVR
                         resultData.Direction = m_RHandTransform.forward.normalized;
@@ -949,12 +960,15 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     {
                         case 1:
                             RequestAction(actionState1.actionID, SkillTriggerStyle.Keyboard);
+                            //RequestAction(actionState1.actionID, SkillTriggerStyle.MouseClick);
                             break;
                         case 2:
                             RequestAction(actionState2.actionID, SkillTriggerStyle.Keyboard);
+                            //RequestAction(actionState2.actionID, SkillTriggerStyle.MouseClick);
                             break;
                         case 3:
                             RequestAction(actionState3.actionID, SkillTriggerStyle.Keyboard);
+                            //RequestAction(actionState3.actionID, SkillTriggerStyle.MouseClick);
                             break;
                         case 4:
                             RequestAction(GameDataSource.Instance.Emote1ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
