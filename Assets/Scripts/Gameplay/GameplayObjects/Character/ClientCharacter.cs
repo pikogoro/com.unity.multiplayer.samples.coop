@@ -6,6 +6,9 @@ using Unity.BossRoom.Gameplay.Actions;
 using Unity.BossRoom.Utils;
 using Unity.Netcode;
 using UnityEngine;
+#if P56
+using UnityEngine.Animations.Rigging;
+#endif  // P56
 
 namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 {
@@ -172,6 +175,19 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                             inputSender.ActionInputEvent += OnActionInput;
                         }
                         inputSender.ClientMoveEvent += OnMoveInput;
+
+#if P56
+                        // Add rig to rig builder and rebuild.
+                        Rig rig = GetComponentInChildren<Rig>();
+                        if (rig != null)
+                        {
+                            RigBuilder rigBuilder = GetComponent<RigBuilder>();
+                            rigBuilder.layers.Clear();
+                            rigBuilder.layers.Add(new RigLayer(rig));
+                            rigBuilder.enabled = true;
+                            rigBuilder.Build();
+                        }
+#endif  // !P56
                     }
                 }
             }

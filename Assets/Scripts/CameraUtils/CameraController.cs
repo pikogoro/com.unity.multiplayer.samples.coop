@@ -48,6 +48,9 @@ namespace Unity.BossRoom.CameraUtils
         const float k_LerpTime = 0.08f;
         Vector3 m_LerpedPosition;
         Quaternion m_LerpedRotation;
+
+        // IK
+        Transform m_RightHandIKTargetTransform;
 #if OVR
         float m_BaseRotationY = 180f;   // TBD
         public float BaseRotationY
@@ -83,8 +86,11 @@ namespace Unity.BossRoom.CameraUtils
             }
 #else   // !P56
             // Inactive "CMCameraPrefab".
-            GameObject cmCameraPrefab = GameObject.Find("CMCameraPrefab");
+            GameObject cmCameraPrefab = GameObject.Find("CMCameraPrefab");            
             cmCameraPrefab.SetActive(false);
+
+            // IK
+            m_RightHandIKTargetTransform = GameObject.Find("RightHandIK_target").transform;
 
             // Set main camera for FPS view
 #if !OVR
@@ -150,6 +156,13 @@ namespace Unity.BossRoom.CameraUtils
 
             m_CamTransform.localPosition = m_LerpedPosition;
             m_CamTransform.rotation = m_LerpedRotation; // rotaion is not local.
+
+            // IK
+            if (m_RightHandIKTargetTransform != null)
+            {
+                m_RightHandIKTargetTransform.localPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 0f, 1f) + new Vector3(0f, 1f, 0.5f);
+                m_RightHandIKTargetTransform.localRotation = Quaternion.Euler(0f, -90f, m_RotationX);
+            }
 #else   // !OVR
             // Update character's pitch.
             Vector3 targetPosition = transform.position + new Vector3(0f, 1.3f, 0f);
