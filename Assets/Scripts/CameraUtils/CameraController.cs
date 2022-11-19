@@ -50,7 +50,7 @@ namespace Unity.BossRoom.CameraUtils
         Quaternion m_LerpedRotation;
 
         // IK
-        Transform m_RightHandIKTargetTransform;
+        Transform m_RightHandIKTargetTransform = null;
 #if OVR
         float m_BaseRotationY = 180f;   // TBD
         public float BaseRotationY
@@ -90,7 +90,11 @@ namespace Unity.BossRoom.CameraUtils
             cmCameraPrefab.SetActive(false);
 
             // IK
-            m_RightHandIKTargetTransform = GameObject.Find("RightHandIK_target").transform;
+            GameObject rhIkTarget = GameObject.Find("RightHandIK_target");
+            if (rhIkTarget != null)
+            {
+                m_RightHandIKTargetTransform = rhIkTarget.transform;
+            }
 
             // Set main camera for FPS view
 #if !OVR

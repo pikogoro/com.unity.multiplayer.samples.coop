@@ -85,7 +85,20 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
         public GameObject BoneHead
         {
-            get { return m_CharacterModel.head.transform.parent.parent.gameObject; }
+            get
+            {
+                if (m_CharacterModel.head != null)
+                {
+                    if (m_CharacterModel.head.transform.parent != null)
+                    {
+                        if (m_CharacterModel.head.transform.parent.parent != null)
+                        {
+                            return m_CharacterModel.head.transform.parent.parent.gameObject;
+                        }
+                    }
+                }
+                return null;
+            }
         }
 #endif  // P56
 
