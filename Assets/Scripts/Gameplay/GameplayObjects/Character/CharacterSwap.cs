@@ -31,6 +31,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             private List<Renderer> m_CachedRenderers;
 #if P56
             public UnityEngine.Avatar avatarOverrides; // reference an humanoid avatar
+            public GameObject boneHead;
 #endif  // P56
 
             public void SetFullActive(bool isActive)
@@ -87,6 +88,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         {
             get
             {
+                // Added characters
+                if (m_CharacterModel.boneHead != null)
+                {
+                    return m_CharacterModel.boneHead;
+                }
+
+                // Original characters
                 if (m_CharacterModel.head != null)
                 {
                     if (m_CharacterModel.head.transform.parent != null)
