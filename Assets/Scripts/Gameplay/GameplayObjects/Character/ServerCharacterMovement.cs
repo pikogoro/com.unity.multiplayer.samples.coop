@@ -47,6 +47,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         LayerMask m_GroundLayerMask;
         RaycastHitComparer m_RaycastHitComparer = null;
         const float k_MaxNavMeshDistance = 1f;
+        //bool m_IsOnNavmesh = true;
 #endif  // P56
 
         private MovementState m_MovementState;
@@ -78,7 +79,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
 #if P56
             m_RaycastHitComparer = new RaycastHitComparer();
-            m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground" });
+            m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground", "Environment" });      // ground and environment
 #endif  // P56
         }
 
@@ -126,16 +127,15 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #else   // !P56
             if (ActionMovement.IsNull(movement.Position))
             {
-                // if movement position is nothing.
-                // Get ground position considering case of character is in air.
+                // if movement position is null, don't move position.
                 Vector3 groundPosition = GetGroundPosition(transform.position + new Vector3(0f, 3f, 0f));
-                m_NavPath.SetTargetPosition(transform.position, m_HasLockOnTarget);
+                m_NavPath.SetTargetPosition(groundPosition, m_HasLockOnTarget);
             }
             else
             {
-                // if movement position is indicated.
-                // Always "movement.Position" is on mesh.
-                m_NavPath.SetTargetPosition(movement.Position, m_HasLockOnTarget);
+                // if movement position is not null, set target posision to movement.Position.
+                Vector3 groundPosition = GetGroundPosition(movement.Position + new Vector3(0f, 3f, 0f));
+                m_NavPath.SetTargetPosition(groundPosition, m_HasLockOnTarget);
             }
 
             if (ActionMovement.IsNull(movement.Rotation))
@@ -377,7 +377,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 position.y += m_UpwardVelocity * Time.fixedDeltaTime;
 
                 // Get ground position by character's top position.
-                Vector3 groundPosition = GetGroundPosition(position + new Vector3(0f, 3f, 0f));
+                Vector3 groundPosition = GetGroundPosition(position + new Vector3(0f, 3f, 0f));     // [TBD] top position is temporary.
+
+                bool isOnNavmesh;
 
                 // verify ground position is indeed on navmesh surface
                 if (NavMesh.SamplePosition(groundPosition,
@@ -385,7 +387,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                         k_MaxNavMeshDistance,
                         NavMesh.AllAreas))
                 {
+                    // On NavMesh.
                     groundPosition = hit.position;
+                    isOnNavmesh = true;
+                }
+                else
+                {
+                    // Off NavMesh.
+                    isOnNavmesh = false;
                 }
 
                 if (groundPosition.y < position.y)
@@ -417,10 +426,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     {
                         // If upward velocity is not positive value, character was landed on ground.
 
-                        // Start NavMeshAgent.
-                        m_NavMeshAgent.updatePosition = true;
-                        m_NavMeshAgent.isStopped = false;
-                        m_NavMeshAgent.Warp(position);  // Warp character position.
+                        if (isOnNavmesh)
+                        {
+                            // If on NavMesh, start NavMeshAgent.
+                            m_NavMeshAgent.updatePosition = true;
+                            m_NavMeshAgent.isStopped = false;
+                            m_NavMeshAgent.Warp(position);  // Warp character position.
+                        }
 
                         // If on the ground, stop falling.
                         m_IsGrounded = true;

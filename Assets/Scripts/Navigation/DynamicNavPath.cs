@@ -93,16 +93,22 @@ namespace Unity.BossRoom.Navigation
         /// <param name="target">The target position.</param>
 #if !P56
         public void SetTargetPosition(Vector3 target)
-#else   // P56
-        /// <param name="hasLockOnTarget">Whether has a "locked on" target.</param>
-        public void SetTargetPosition(Vector3 target, bool hasLockOnTarget)
-#endif  // P56
         {
             // If there is an nav mesh area close to the target use a point inside the nav mesh instead.
             if (NavMesh.SamplePosition(target, out NavMeshHit hit, 2f, NavMesh.AllAreas))
             {
                 target = hit.position;
             }
+#else   // P56
+        /// <param name="hasLockOnTarget">Whether has a "locked on" target.</param>
+        public void SetTargetPosition(Vector3 target, bool hasLockOnTarget)
+        {
+            // If there is an nav mesh area close to the target use a point inside the nav mesh instead.
+            if (NavMesh.SamplePosition(target, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+            {
+                target = hit.position;
+            }
+#endif  // P56
 
             m_PositionTarget = target;
             m_TransformTarget = null;
@@ -147,6 +153,17 @@ namespace Unity.BossRoom.Navigation
                 OnTargetPositionChanged(TargetPosition);
             }
 
+#if P56
+            if (!isGrounded)
+            {
+                // If in air, ignore position y to calculate distance.
+
+                Vector3 targetPosition = TargetPosition;
+                targetPosition.y = m_Agent.transform.position.y;
+                return (targetPosition - m_Agent.transform.position).normalized * distance;
+            }
+#endif  // P56
+
             if (m_Path.Count == 0)
             {
                 return Vector3.zero;
@@ -154,42 +171,14 @@ namespace Unity.BossRoom.Navigation
 
             var currentPredictedPosition = m_Agent.transform.position;
             var remainingDistance = distance;
-#if P56
-            float positionY = currentPredictedPosition.y;
-#endif  // P56
-
             while (remainingDistance > 0)
             {
-#if !P56
                 var toNextPathPoint = m_Path[0] - currentPredictedPosition;
-#else   //!P56
-                Vector3 toNextPathPoint;
-
-                if (isGrounded)
-                {
-                    toNextPathPoint = m_Path[0] - currentPredictedPosition;
-                }
-                else
-                {
-                    // If not grounded, ignore position y to calculate distance.
-                    Vector3 path = m_Path[0];
-                    path.y = positionY;
-                    toNextPathPoint = path - currentPredictedPosition;
-
-                }
-#endif  // !P56
 
                 // If end point is closer then distance to move
                 if (toNextPathPoint.sqrMagnitude < remainingDistance * remainingDistance)
                 {
                     currentPredictedPosition = m_Path[0];
-#if P56
-                    if (!isGrounded)
-                    {
-                        // If not grounded, ignore position y to calculate distance.
-                        currentPredictedPosition.y = positionY;
-                    }
-#endif  // P56
                     m_Path.RemoveAt(0);
                     remainingDistance -= toNextPathPoint.magnitude;
                 }

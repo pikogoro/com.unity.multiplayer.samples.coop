@@ -202,7 +202,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 actionState3 = new ActionState() { actionID = action3.ActionID, selectable = true };
             }
 
-            m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground" });
+            m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground", "Environment" });   // ground and environment
             m_ActionLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Ground" });
 
             m_RaycastHitComparer = new RaycastHitComparer();
@@ -553,18 +553,25 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     //    movement.Rotation = ActionMovement.RotationNull;
                     //}
 
-                    Vector3 groundPosition = GetGroundPosition(estimatedPosition + new Vector3(0f, 3f, 0f));
+                    Vector3 groundPosition = GetGroundPosition(estimatedPosition + new Vector3(0f, 3f, 0f));    // [TBD] top position is temporary.
 
                     // verify point is indeed on navmesh surface
+#if FORCE_NAVMESH
                     if (NavMesh.SamplePosition(groundPosition,
                             out var hit,
                             k_MaxNavMeshDistance,
                             NavMesh.AllAreas))
                     {
+#endif  // FORCE_NAVMESH
+                    {
                         if (!ActionMovement.IsNull(movement.Position))
                         {
                             // If position is not null, move and rotate character.
+#if FORCE_NAVMESH
                             movement.Position = hit.position;
+#else   // FORCE_NAVMESH
+                            movement.Position = groundPosition;
+#endif  // FORCE_NAVMESH
                             movement.Rotation = rotation;
                         }
                         else
@@ -591,8 +598,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         m_ServerCharacter.SendCharacterInputServerRpc(movement);
 
                         //Send our client only click request
+#if FORCE_NAVMESH
                         ClientMoveEvent?.Invoke(hit.position);
-
+#else   // FORCE_NAVMESH
+                        ClientMoveEvent?.Invoke(groundPosition);
+#endif  // FORCE_NAVMESH
 #if !OVR
                         m_LastSentRotationY = m_LastRotationY;
 #endif  // !OVR
