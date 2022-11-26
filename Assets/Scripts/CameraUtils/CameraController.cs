@@ -22,13 +22,21 @@ namespace Unity.BossRoom.CameraUtils
 
         Transform m_CamTransform = null;
 
-        GameObject m_BoneHead = null;
-        public GameObject BoneHead
+        GameObject m_HeadGO = null;
+        public GameObject HeadGO
         {
-            set { m_BoneHead = value; }
+            set { m_HeadGO = value; }
         }
 
         float m_RotationX = 0f;
+
+        GameObject m_EyesGO = null;
+        public GameObject EyesGO
+        {
+            set { m_EyesGO = value;  }
+        }
+
+        Vector3 m_EyesPosition = new Vector3(0f, 1.3f, 0.3f);    // default eyes position
 
         public float RotationX
         {
@@ -89,6 +97,13 @@ namespace Unity.BossRoom.CameraUtils
             GameObject cmCameraPrefab = GameObject.Find("CMCameraPrefab");            
             cmCameraPrefab.SetActive(false);
 
+            // Setup eyes position.
+            if (m_EyesGO != null)
+            {
+                m_EyesPosition = m_EyesGO.transform.localPosition;
+                m_EyesPosition.x = 0f;
+            }
+
             // IK
             GameObject rhIkTarget = GameObject.Find("RightHandIK_target");
             if (rhIkTarget != null)
@@ -100,7 +115,8 @@ namespace Unity.BossRoom.CameraUtils
 #if !OVR
             m_CamTransform = Camera.main.gameObject.transform;
             m_CamTransform.parent = transform;
-            m_CamTransform.localPosition = new Vector3(0f, 1.3f, 0.3f);
+            //m_CamTransform.localPosition = new Vector3(0f, 1.3f, 0.3f);
+            m_CamTransform.localPosition = m_EyesPosition;
 
             m_LerpedPosition = m_CamTransform.localPosition;
             m_LerpedRotation = m_CamTransform.rotation; // rotation is not local.
@@ -136,21 +152,22 @@ namespace Unity.BossRoom.CameraUtils
             if (m_IsFPSView)
             {
                 // FPS
-                if (m_BoneHead != null && m_BoneHead.activeSelf)
+                if (m_HeadGO != null && m_HeadGO.activeSelf)
                 {
-                    m_BoneHead.SetActive(false);
+                    m_HeadGO.SetActive(false);
                 }
-                targetPosition = new Vector3(0f, 1.3f, 0.3f);
+                //targetPosition = new Vector3(0f, 1.3f, 0.3f);
+                targetPosition = m_EyesPosition;
                 targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
             }
             else
             {
                 // TPS
-                if (m_BoneHead != null && !m_BoneHead.activeSelf)
+                if (m_HeadGO != null && !m_HeadGO.activeSelf)
                 {
-                    m_BoneHead.SetActive(true);
+                    m_HeadGO.SetActive(true);
                 }
-                targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 3f, -3f);
+                targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 3f, -3f); // [TBD] position is temporary.
                 targetRotation = Quaternion.Euler(15f - m_RotationX, m_RotationY, 0f);
             }
 

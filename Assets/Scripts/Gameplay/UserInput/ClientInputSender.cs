@@ -254,7 +254,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
         void Start()
         {
             m_CameraController = GetComponentInChildren<CameraController>();
-            m_CameraController.BoneHead = GetComponentInChildren<CharacterSwap>().BoneHead;
+            m_CameraController.HeadGO = GetComponentInChildren<CharacterSwap>().HeadGO;
+            m_CameraController.EyesGO = GetComponentInChildren<CharacterSwap>().EyesGO;
 
             GameObject joystick = GameObject.Find("Joystick");
 #if UNITY_STANDALONE || OVR

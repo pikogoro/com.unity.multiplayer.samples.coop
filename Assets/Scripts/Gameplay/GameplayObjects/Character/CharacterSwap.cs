@@ -31,7 +31,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             private List<Renderer> m_CachedRenderers;
 #if P56
             public UnityEngine.Avatar avatarOverrides; // reference an humanoid avatar
-            public GameObject boneHead;
+            public GameObject headGO;
+            public GameObject eyesGO;
 #endif  // P56
 
             public void SetFullActive(bool isActive)
@@ -84,28 +85,28 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         CharacterModelSet m_CharacterModel;
 
 #if P56
-        public GameObject BoneHead
+        public GameObject HeadGO
         {
             get
             {
-                // Added characters
-                if (m_CharacterModel.boneHead != null)
+                if (m_CharacterModel.headGO != null)
                 {
-                    return m_CharacterModel.boneHead;
+                    // Added characters
+                    return m_CharacterModel.headGO;
                 }
+                else
+                {
+                    // Original characters
+                    return m_CharacterModel.head.transform.parent.parent.gameObject;
+                }
+            }
+        }
 
-                // Original characters
-                if (m_CharacterModel.head != null)
-                {
-                    if (m_CharacterModel.head.transform.parent != null)
-                    {
-                        if (m_CharacterModel.head.transform.parent.parent != null)
-                        {
-                            return m_CharacterModel.head.transform.parent.parent.gameObject;
-                        }
-                    }
-                }
-                return null;
+        public GameObject EyesGO
+        {
+            get
+            {
+                return m_CharacterModel.eyesGO;
             }
         }
 #endif  // P56
