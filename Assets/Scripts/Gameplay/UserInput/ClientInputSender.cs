@@ -151,6 +151,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
         int m_SelectedAction = 1;
         const int k_MinAction = 1;
         const int k_MaxAction = 7;
+
+        PositionUtil m_PositionUtil;
 #if OVR
         bool m_IsMoving = false;
         float m_BaseRotationY = 0f;
@@ -202,10 +204,14 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 actionState3 = new ActionState() { actionID = action3.ActionID, selectable = true };
             }
 
-            m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground", "Environment" });   // ground and environment
+            m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground" });
             m_ActionLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Ground" });
 
             m_RaycastHitComparer = new RaycastHitComparer();
+
+#if P56
+            m_PositionUtil = new PositionUtil();
+#endif  // P56
         }
 
         public override void OnNetworkDespawn()
@@ -288,31 +294,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
             ActionInputEvent?.Invoke(action);
             m_ServerCharacter.RecvDoActionServerRPC(action);
         }
-
-#if P56
-        /// <summary>
-        /// Get ground position by using raycast.
-        /// </summary>
-        private Vector3 GetGroundPosition(Vector3 position)
-        {
-            Vector3 groundPosition = Vector3.zero;
-            var ray = new Ray(position, Vector3.down);
-            var groundHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_GroundRaycastDistance, m_GroundLayerMask);
-
-            if (groundHits > 0)
-            {
-                if (groundHits > 1)
-                {
-                    // sort hits by distance
-                    Array.Sort(k_CachedHit, 0, groundHits, m_RaycastHitComparer);
-                }
-
-                groundPosition = k_CachedHit[0].point;
-            }
-
-            return groundPosition;
-        }
-#endif  // P56
 
         void FixedUpdate()
         {
@@ -413,7 +394,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 float rotationY = m_LastRotationY + yaw;
                 float rotationDelta = Math.Abs(rotationY - m_LastSentRotationY);
                 rotation = Quaternion.Euler(0f, rotationY, 0f);
-                if (rotationDelta > 30f)
+                if (rotationDelta > 1f)
                 {
                     // Start rotation.
                     m_RotationState = RotationState.Rotating;
@@ -554,7 +535,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     //    movement.Rotation = ActionMovement.RotationNull;
                     //}
 
-                    Vector3 groundPosition = GetGroundPosition(estimatedPosition + new Vector3(0f, 3f, 0f));    // [TBD] top position is temporary.
+                    //Vector3 groundPosition = m_PositioningUtil.GetGroundPosition(estimatedPosition + new Vector3(0f, 3f, 0f));    // [TBD] top position is temporary.
+                    //Vector3 groundPosition = m_PositioningUtil.GetGroundPosition(estimatedPosition);    // [TBD] top position is temporary.
+                    Vector3 groundPosition = estimatedPosition;
 
                     // verify point is indeed on navmesh surface
 #if FORCE_NAVMESH
@@ -806,12 +789,15 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if !OVR
                         if (m_CameraController.IsFPSView)
                         {
+                            //resultData.Position = m_CameraController.EyesPosition;  // [TBD] position is temporary.
+                            resultData.Position = m_CameraController.MuzzlePosition;  // [TBD] position is temporary.
                             resultData.Direction = m_MainCamera.transform.forward.normalized;
                         }
                         else
                         {
-                            // [TBD] temporary aiming method for TSP.
-                            Vector3 vector = m_MainCamera.transform.forward * 50f + new Vector3(0f, 3f, 0f);
+                            //resultData.Position = m_CameraController.EyesPosition;  // [TBD] position is temporary.
+                            resultData.Position = m_CameraController.MuzzlePosition;  // [TBD] position is temporary.
+                            Vector3 vector = m_MainCamera.transform.forward * 50f + new Vector3(0f, 3f, 0f);    // [TBD] temporary aiming method for TSP.
                             resultData.Direction = vector.normalized;
                         }
 #else   // !OVR

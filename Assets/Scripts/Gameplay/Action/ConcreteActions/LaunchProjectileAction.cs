@@ -16,6 +16,7 @@ namespace Unity.BossRoom.Gameplay.Actions
         private bool m_Launched = false;
 
 #if P56
+        protected Vector3 m_Position;
         protected Vector3 m_Direction;
 #endif  // P56
 
@@ -27,6 +28,7 @@ namespace Unity.BossRoom.Gameplay.Actions
             serverCharacter.serverAnimationHandler.NetworkAnimator.SetTrigger(Config.Anim);
             serverCharacter.clientCharacter.RecvDoActionClientRPC(Data);
 #if P56
+            m_Position = Data.Position;
             m_Direction = Data.Direction;
 #endif  // P56
             return true;
@@ -81,13 +83,15 @@ namespace Unity.BossRoom.Gameplay.Actions
                 // point the projectile the same way we're facing
 #if !P56
                 no.transform.forward = parent.physicsWrapper.Transform.forward;
-#else   // !P56
-                no.transform.forward = m_Direction;
-#endif  // !P56
 
                 //this way, you just need to "place" the arrow by moving it in the prefab, and that will control
                 //where it appears next to the player.
                 no.transform.position = parent.physicsWrapper.Transform.localToWorldMatrix.MultiplyPoint(no.transform.position);
+#else   // !P56
+                no.transform.forward = m_Direction;
+
+                no.transform.position = parent.physicsWrapper.Transform.localToWorldMatrix.MultiplyPoint(m_Position);
+#endif  // !P56
 
                 no.GetComponent<PhysicsProjectile>().Initialize(parent.NetworkObjectId, projectileInfo);
 

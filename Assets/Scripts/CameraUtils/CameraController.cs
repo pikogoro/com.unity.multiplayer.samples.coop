@@ -37,6 +37,17 @@ namespace Unity.BossRoom.CameraUtils
         }
 
         Vector3 m_EyesPosition = new Vector3(0f, 1.3f, 0.3f);    // default eyes position
+        public Vector3 EyesPosition
+        {
+            get { return m_EyesPosition; }
+        }
+
+        //Vector3 m_MuzzlePosition = new Vector3(0f, 1.3f, 0.3f);    // default eyes position
+        Transform m_MuzzleTransform = null;
+        public Vector3 MuzzlePosition
+        {
+            get { return transform.InverseTransformPoint(m_MuzzleTransform.position); }
+        }
 
         public float RotationX
         {
@@ -58,7 +69,8 @@ namespace Unity.BossRoom.CameraUtils
         Quaternion m_LerpedRotation;
 
         // IK
-        Transform m_RightHandIKTargetTransform = null;
+        Transform m_RightHandRoot = null;
+        Transform m_RightHandIKTarget = null;
 #if OVR
         float m_BaseRotationY = 180f;   // TBD
         public float BaseRotationY
@@ -105,10 +117,22 @@ namespace Unity.BossRoom.CameraUtils
             }
 
             // IK
-            GameObject rhIkTarget = GameObject.Find("RightHandIK_target");
-            if (rhIkTarget != null)
+            GameObject go = GameObject.Find("RightHandRoot");
+            if (go != null)
             {
-                m_RightHandIKTargetTransform = rhIkTarget.transform;
+                m_RightHandRoot = go.transform;
+            }
+
+            go = GameObject.Find("RightHandIK_target");
+            if (go != null)
+            {
+                m_RightHandIKTarget = go.transform;
+            }
+
+            go = GameObject.Find("muzzle"); // [TBD] "muzzle"
+            if (go != null)
+            {
+                m_MuzzleTransform = go.transform;
             }
 
             // Set main camera for FPS view
@@ -179,10 +203,10 @@ namespace Unity.BossRoom.CameraUtils
             m_CamTransform.rotation = m_LerpedRotation; // rotaion is not local.
 
             // IK
-            if (m_RightHandIKTargetTransform != null)
+            if (m_RightHandIKTarget != null)
             {
-                m_RightHandIKTargetTransform.localPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 0f, 1f) + new Vector3(0f, 1f, 0.5f);
-                m_RightHandIKTargetTransform.localRotation = Quaternion.Euler(0f, -90f, m_RotationX);
+                m_RightHandIKTarget.localPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 0f, 1f) + m_RightHandRoot.localPosition;
+                m_RightHandIKTarget.localRotation = Quaternion.Euler(90f - m_RotationX, 0f, 0f);
             }
 #else   // !OVR
             // Update character's pitch.
