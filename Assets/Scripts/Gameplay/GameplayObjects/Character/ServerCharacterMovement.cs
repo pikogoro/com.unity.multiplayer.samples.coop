@@ -1,3 +1,5 @@
+#define USE_THRUSTER
+
 using System;
 using Unity.BossRoom.Gameplay.Configuration;
 using Unity.BossRoom.Navigation;
@@ -45,7 +47,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         PositionUtil m_PositionUtil;
         const float k_MaxNavMeshDistance = 1f;
         bool m_IsOnNavmesh = true;
-        Vector3 m_NextPosition;
+        Vector3 m_MovementPosition;
 #endif  // P56
 
         private MovementState m_MovementState;
@@ -124,19 +126,21 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #else   // !P56
             if (ActionMovement.IsNull(movement.Position))
             {
-                // if movement position is null, don't move position.
-                Vector3 groundPosition = m_PositionUtil.GetGroundPosition(transform.position + new Vector3(0f, 1f, 0f));
-                m_NextPosition = groundPosition;
+                // if movement position is null, don't move.
+                m_MovementPosition = transform.position;
             }
             else
             {
-                Vector3 groundPosition = m_PositionUtil.GetGroundPosition(movement.Position + new Vector3(0f, 1f, 0f));
+                // if movement position is not null, set new posision to movment position.
                 if (m_IsGrounded && m_IsOnNavmesh)
                 {
-                    // if movement position is not null, set target posision to movement.Position.
+                    Vector3 groundPosition = m_PositionUtil.GetGroundPosition(movement.Position);
                     m_NavPath.SetTargetPosition(groundPosition, m_HasLockOnTarget);
                 }
-                m_NextPosition = groundPosition;
+                else
+                {
+                    m_MovementPosition = movement.Position;
+                }
             }
 
             if (ActionMovement.IsNull(movement.Rotation))
@@ -151,18 +155,24 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
 
             // For jump
+#if USE_THRUSTER
+            if (0f < movement.UpwardVelocity)
+            {
+                m_UpwardVelocity = movement.UpwardVelocity;
+            }
+#else   // USE_THRUSTER
             if (m_IsGrounded && 0f < movement.UpwardVelocity)
             {
                 m_UpwardVelocity = movement.UpwardVelocity;
-                m_IsGrounded = false;
             }
-            else
+             else
             {
                 if (0f < m_UpwardVelocity && movement.UpwardVelocity == 0f)
                 {
                     m_UpwardVelocity = 0f;
                 }
             }
+#endif  // USE_THRUSTER
 #endif  // !P56
         }
 
@@ -328,9 +338,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 }
                 else
                 {
-                    Vector3 nextPosition = m_NextPosition;
-                    nextPosition.y = transform.position.y;
-                    movementVector = (nextPosition - transform.position).normalized * desiredMovementAmount;
+                    Vector3 tmpPosition = m_MovementPosition;
+                    tmpPosition.y = transform.position.y;
+                    movementVector = (tmpPosition - transform.position).normalized * desiredMovementAmount;
                 }
 #endif  // !P56
 
@@ -352,27 +362,38 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             transform.rotation = Quaternion.LookRotation(movementVector);
 #else   // !P56
 
+            if (0f < m_UpwardVelocity)
+            {
+                m_IsGrounded = false;
+            }
+
             if (m_IsGrounded)
             {
                 if (m_IsOnNavmesh)
                 {
                     m_NavMeshAgent.Move(movementVector);
                 }
+                else
+                {
+                    // [TODO] perform movement on out of Navmesh.
+                    m_MovementPosition = transform.position;
+                }
             }
             else
             {
                 // Calculate character next position by movement vector and upward velocity.
-                Vector3 position = transform.position + movementVector;
-                position.y += m_UpwardVelocity * Time.fixedDeltaTime;
+                Vector3 currentPositon = transform.position;
+                Vector3 nextPosition = currentPositon + movementVector;
+                nextPosition.y += m_UpwardVelocity * Time.fixedDeltaTime;
 
-                Vector3 collidePosition = m_PositionUtil.GetCollidePosition(transform.position, position);
-                if (collidePosition != Vector3.zero)
+                Vector3 blockedPosition = m_PositionUtil.GetBlockedPosition(currentPositon, nextPosition, 0.5f);
+                if (blockedPosition != Vector3.zero)
                 {
-                    position = collidePosition;
+                    nextPosition = blockedPosition;
                 }
 
                 // Get ground position by character's top position.
-                Vector3 groundPosition = m_PositionUtil.GetGroundPosition(position + new Vector3(0f, 1f, 0f));     // [TBD] top position is temporary.
+                Vector3 groundPosition = m_PositionUtil.GetGroundPosition(nextPosition, 0.5f);
 
                 // verify ground position is indeed on navmesh surface
                 if (NavMesh.SamplePosition(groundPosition,
@@ -381,7 +402,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                         NavMesh.AllAreas))
                 {
                     // On NavMesh.
-                    groundPosition = hit.position;
                     m_IsOnNavmesh = true;
                 }
                 else
@@ -390,7 +410,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     m_IsOnNavmesh = false;
                 }
 
-                if (groundPosition.y < position.y)
+                if (groundPosition.y < nextPosition.y)
                 {
                     // If in air, stop NavMeshAgene.
 
@@ -401,9 +421,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     }
 
                     // Update character position.
-                    transform.position = position;
+                    transform.position = nextPosition;
 
                     // Update upward velocity by gravity.
+                    m_IsGrounded = false;
                     m_UpwardVelocity += Physics.gravity.y * Time.fixedDeltaTime;
                 }
                 else
@@ -415,9 +436,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                         // If on NavMesh, start NavMeshAgent.
                         m_NavMeshAgent.updatePosition = true;
                         m_NavMeshAgent.isStopped = false;
-                        m_NavMeshAgent.Warp(position);  // Warp character position.
+                        m_NavMeshAgent.Warp(groundPosition);  // Warp character position.
                         m_NavPath.Clear();  // Clear path.
                     }
+
+                    // Update character position.
+                    transform.position = nextPosition;
+                    m_MovementPosition = transform.position;
 
                     // If on the ground, stop falling.
                     m_IsGrounded = true;

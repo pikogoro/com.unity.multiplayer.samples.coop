@@ -30,7 +30,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
         ProjectileInfo m_ProjectileInfo;
 
         const int k_MaxCollisions = 4;
-        const float k_WallLingerSec = 2f; //time in seconds that arrows linger after hitting a target.
+        //const float k_WallLingerSec = 2f; //time in seconds that arrows linger after hitting a target.
+        const float k_WallLingerSec = 0.5f; //time in seconds that arrows linger after hitting a target.
         const float k_EnemyLingerSec = 0.2f; //time after hitting an enemy that we persist.
 #if !P56
         Collider[] m_CollisionCache = new Collider[k_MaxCollisions];
@@ -98,8 +99,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
 
                 m_DestroyAtSec = Time.fixedTime + (m_ProjectileInfo.Range / m_ProjectileInfo.Speed_m_s);
 
-                m_CollisionMask = LayerMask.GetMask(new[] { "NPCs", "Default", "Environment" });
-                m_BlockerMask = LayerMask.GetMask(new[] { "Default", "Environment" });
+                //m_CollisionMask = LayerMask.GetMask(new[] { "NPCs", "Default", "Environment" });
+                m_CollisionMask = LayerMask.GetMask(new[] { "NPCs", "Ground", "Environment" });
+                //m_BlockerMask = LayerMask.GetMask(new[] { "Default", "Environment" });
+                m_BlockerMask = LayerMask.GetMask(new[] { "Ground", "Environment" });
                 m_NpcLayer = LayerMask.NameToLayer("NPCs");
 
 #if P56

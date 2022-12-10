@@ -1,3 +1,5 @@
+//#define FORCE_NAVMESH
+
 using System;
 using Unity.BossRoom.Gameplay.Actions;
 using Unity.BossRoom.Gameplay.Configuration;
@@ -129,7 +131,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
         NetworkStats m_NetworkStats = null;
 
         // For jump
-        float m_UpwardPower = 8f;
+        float m_UpwardPower = 4f;
         float m_UpwardVelocity = 0f;
         bool m_JumpStateChanged = false;
         const float k_GroundRaycastDistance = 100f;
@@ -414,7 +416,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
 #endif  // UNITY_STANDALONE
 
-            if (m_MoveRequest || (m_RotationState != RotationState.Idle) || m_JumpStateChanged)
+            //if (m_MoveRequest || (m_RotationState != RotationState.Idle) || m_JumpStateChanged)
+            if (m_MoveRequest || (m_RotationState != RotationState.Idle) || m_UpwardVelocity != 0)
             {
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
@@ -577,7 +580,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                         // Set upward velocity and reset jump state.
                         movement.UpwardVelocity = m_UpwardVelocity;
-                        m_JumpStateChanged = false;
+                        //m_JumpStateChanged = false;
 
                         m_ServerCharacter.SendCharacterInputServerRpc(movement);
 

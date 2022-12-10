@@ -142,27 +142,12 @@ namespace Unity.BossRoom.Navigation
         /// </summary>
         /// <param name="distance">The distance to move.</param>
         /// <returns>Returns the movement vector.</returns>
-#if !P56
         public Vector3 MoveAlongPath(float distance)
-#else   // !P56
-        public Vector3 MoveAlongPath(float distance, bool isGrounded)
-#endif  // !P56
         {
             if (m_TransformTarget != null)
             {
                 OnTargetPositionChanged(TargetPosition);
             }
-
-#if P56
-            if (!isGrounded)
-            {
-                // If in air, ignore position y to calculate distance.
-
-                Vector3 targetPosition = TargetPosition;
-                targetPosition.y = m_Agent.transform.position.y;
-                return (targetPosition - m_Agent.transform.position).normalized * distance;
-            }
-#endif  // P56
 
             if (m_Path.Count == 0)
             {
