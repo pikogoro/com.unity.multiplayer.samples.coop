@@ -141,12 +141,39 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         private AIBrain m_AIBrain;
         NetworkAvatarGuidState m_State;
 
+#if P56
+        [SerializeField]
+        float m_HitRadius = 5f;
+
+        const int k_MaxCollisions = 16;
+
+        Collider[] m_CollisionCache = new Collider[k_MaxCollisions];
+
+        [SerializeField]
+        LayerMask m_LayerMask;
+
+        [SerializeField]
+        int m_DamagePoints = 50;
+
+        [SerializeField]
+        float m_KnockbackSpeed = 2.1f;
+
+        [SerializeField]
+        float m_KnockbackDuration = 0.4f;
+#endif  // P56
+
         void Awake()
         {
             m_ServerActionPlayer = new ServerActionPlayer(this);
             NetLifeState = GetComponent<NetworkLifeState>();
             NetHealthState = GetComponent<NetworkHealthState>();
             m_State = GetComponent<NetworkAvatarGuidState>();
+#if P56
+            if (m_LayerMask == 0)
+            {
+                m_LayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs" });   // PCs and NPCs are damaged.
+            }
+#endif  // P56
         }
 
         public override void OnNetworkSpawn()
@@ -297,11 +324,36 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         {
             yield return new WaitForSeconds(m_KilledDestroyDelaySeconds);
 
+#if P56
+            Detonate();     // Indicated type characters are damaged by last explosion.
+#endif  // P56
+
             if (NetworkObject != null)
             {
                 NetworkObject.Despawn(true);
             }
         }
+
+#if P56
+        void Detonate()
+        {
+            var hits = Physics.OverlapSphereNonAlloc(transform.position, m_HitRadius, m_CollisionCache, m_LayerMask);
+
+            for (int i = 0; i < hits; i++)
+            {
+                if (m_CollisionCache[i].gameObject.TryGetComponent(out IDamageable damageReceiver))
+                {
+                    damageReceiver.ReceiveHP(null, -m_DamagePoints);
+
+                    var serverCharacter = m_CollisionCache[i].gameObject.GetComponentInParent<ServerCharacter>();
+                    if (serverCharacter)
+                    {
+                        serverCharacter.Movement.StartKnockback(transform.position, m_KnockbackSpeed, m_KnockbackDuration);
+                    }
+                }
+            }
+        }
+#endif  // P56
 
         /// <summary>
         /// Receive an HP change from somewhere. Could be healing or damage.

@@ -426,6 +426,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     // Update upward velocity by gravity.
                     m_IsGrounded = false;
                     m_UpwardVelocity += Physics.gravity.y * Time.fixedDeltaTime;
+
+                    // 
+                    m_CharLogic.serverAnimationHandler.NetworkAnimator.SetTrigger("Rise");
                 }
                 else
                 {
@@ -447,6 +450,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     // If on the ground, stop falling.
                     m_IsGrounded = true;
                     m_UpwardVelocity = 0f;
+
+                    // 
+                    m_CharLogic.serverAnimationHandler.NetworkAnimator.SetTrigger("Grounded");
                 }
             }
 

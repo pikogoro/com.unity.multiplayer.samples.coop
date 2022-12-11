@@ -56,6 +56,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.AnimationCallbacks
             public float m_VolumeMultiplier = 1;
             [Tooltip("Should we loop the sound for as long as we're in the animation node?")]
             public bool m_LoopSound = false;
+
+#if P56
+            [Header("Particle System")]
+            public ParticleSystem m_ParticleSystem;
+#endif  // P56
         }
         [SerializeField]
         internal AnimatorNodeEntryEvent[] m_EventsOnNodeEntry;
@@ -115,6 +120,12 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.AnimationCallbacks
                     {
                         StartCoroutine(CoroPlayStateEnterSound(info));
                     }
+#if P56
+                    if (info.m_ParticleSystem)
+                    {
+                        info.m_ParticleSystem.Play();
+                    }
+#endif  // P56
                 }
             }
         }
@@ -206,6 +217,19 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.AnimationCallbacks
         public void OnStateExit(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
             Debug.Assert(m_Animator == animator); // just a sanity check
+
+#if P56
+            foreach (var info in m_EventsOnNodeEntry)
+            {
+                if (info.m_AnimatorNodeNameHash == stateInfo.shortNameHash)
+                {
+                    if (info.m_ParticleSystem)
+                    {
+                        info.m_ParticleSystem.Stop();
+                    }
+                }
+            }
+#endif  // P56
 
             m_ActiveNodes.Remove(stateInfo.shortNameHash);
         }
