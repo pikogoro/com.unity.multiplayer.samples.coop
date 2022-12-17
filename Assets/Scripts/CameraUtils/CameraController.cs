@@ -4,6 +4,8 @@ using UnityEngine.Assertions;
 #if P56
 using System;
 using Unity.BossRoom.Utils;
+using UnityEngine.UI;
+using System.Collections.Generic;
 #endif  // P56
 
 namespace Unity.BossRoom.CameraUtils
@@ -39,14 +41,17 @@ namespace Unity.BossRoom.CameraUtils
         Vector3 m_EyesPosition = new Vector3(0f, 1.3f, 0.3f);    // default eyes position
         public Vector3 EyesPosition
         {
-            get { return m_EyesPosition; }
+            get { return m_EyesPosition; }  // local position
         }
 
-        //Vector3 m_MuzzlePosition = new Vector3(0f, 1.3f, 0.3f);    // default eyes position
         Transform m_MuzzleTransform = null;
         public Vector3 MuzzlePosition
         {
-            get { return transform.InverseTransformPoint(m_MuzzleTransform.position); }
+            get { return m_MuzzleTransform.position; }  // world position
+        }
+        public Vector3 MuzzleLocalPosition
+        {
+            get { return transform.worldToLocalMatrix.MultiplyPoint(m_MuzzleTransform.position); } // world position -> local position
         }
 
         public float RotationX
@@ -61,6 +66,12 @@ namespace Unity.BossRoom.CameraUtils
             set { m_RotationY = value; }
         }
 
+        Vector3 m_AimPosition;
+        public Vector3 AimPosition
+        {
+            get { return m_AimPosition; }   // world position
+        }
+
         // For lerp of camera view.
         PositionLerper m_PositionLerper;
         RotationLerper m_RotationLerper;
@@ -71,6 +82,17 @@ namespace Unity.BossRoom.CameraUtils
         // IK
         Transform m_RightHandRoot = null;
         Transform m_RightHandIKTarget = null;
+
+        // Aiming
+        Image m_ReticleImage;
+        RectTransform m_ReticleTransform;
+        Vector2 m_ReticleOriginalPosition;
+        const float k_AimingRaycastDistance = 100f;
+        readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
+        LayerMask m_AimingLayerMask;
+        LayerMask m_TargetLayerMask;
+
+        RaycastHitComparer m_RaycastHitComparer;
 #if OVR
         float m_BaseRotationY = 180f;   // TBD
         public float BaseRotationY
@@ -86,6 +108,10 @@ namespace Unity.BossRoom.CameraUtils
 #if P56
             m_PositionLerper = new PositionLerper(m_CamTransform.position, k_LerpTime);
             m_RotationLerper = new RotationLerper(m_CamTransform.rotation, k_LerpTime);
+
+            m_AimingLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Environment", "Default", "Ground" });
+            m_TargetLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs" });
+            m_RaycastHitComparer = new RaycastHitComparer();
 #endif  // P56
         }
 
@@ -129,17 +155,24 @@ namespace Unity.BossRoom.CameraUtils
                 m_RightHandIKTarget = go.transform;
             }
 
+            // Aiming
             go = GameObject.Find("muzzle"); // [TBD] "muzzle"
             if (go != null)
             {
                 m_MuzzleTransform = go.transform;
             }
 
+            go = GameObject.Find("Reticle");
+            if (go != null) {
+                m_ReticleImage = go.GetComponent<Image>();
+                m_ReticleTransform = go.GetComponent<RectTransform>();
+                m_ReticleOriginalPosition = m_ReticleTransform.position;
+            }
+
             // Set main camera for FPS view
 #if !OVR
             m_CamTransform = Camera.main.gameObject.transform;
             m_CamTransform.parent = transform;
-            //m_CamTransform.localPosition = new Vector3(0f, 1.3f, 0.3f);
             m_CamTransform.localPosition = m_EyesPosition;
 
             m_LerpedPosition = m_CamTransform.localPosition;
@@ -179,8 +212,8 @@ namespace Unity.BossRoom.CameraUtils
                 if (m_HeadGO != null && m_HeadGO.activeSelf)
                 {
                     m_HeadGO.SetActive(false);
+                    m_ReticleTransform.position = m_ReticleOriginalPosition;
                 }
-                //targetPosition = new Vector3(0f, 1.3f, 0.3f);
                 targetPosition = m_EyesPosition;
                 targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
             }
@@ -190,8 +223,9 @@ namespace Unity.BossRoom.CameraUtils
                 if (m_HeadGO != null && !m_HeadGO.activeSelf)
                 {
                     m_HeadGO.SetActive(true);
+                    m_ReticleTransform.position = m_ReticleOriginalPosition + new Vector2(0f, 50f);
                 }
-                targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 3f, -3f); // [TBD] position is temporary.
+                targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 3f, -4.5f); // [TBD] position is temporary.
                 targetRotation = Quaternion.Euler(15f - m_RotationX, m_RotationY, 0f);
             }
 
@@ -201,13 +235,6 @@ namespace Unity.BossRoom.CameraUtils
 
             m_CamTransform.localPosition = m_LerpedPosition;
             m_CamTransform.rotation = m_LerpedRotation; // rotaion is not local.
-
-            // IK
-            if (m_RightHandIKTarget != null)
-            {
-                m_RightHandIKTarget.localPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 0f, 1f) + m_RightHandRoot.localPosition;
-                m_RightHandIKTarget.localRotation = Quaternion.Euler(90f - m_RotationX, 0f, 0f);
-            }
 #else   // !OVR
             // Update character's pitch.
             Vector3 targetPosition = transform.position + new Vector3(0f, 1.3f, 0f);
@@ -221,6 +248,58 @@ namespace Unity.BossRoom.CameraUtils
             // Rotation method for mesures to "virtual reality sickness".
             m_CamTransform.rotation = Quaternion.Euler(0f, m_BaseRotationY, 0f);
 #endif  // !OVR
+        }
+
+        private void FixedUpdate()
+        {
+            // IK
+            if (m_RightHandIKTarget != null)
+            {
+                m_RightHandIKTarget.localPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 0f, 1f) + m_RightHandRoot.localPosition;
+                m_RightHandIKTarget.localRotation = Quaternion.Euler(90f - m_RotationX, 0f, 0f);
+            }
+
+            // Aiming
+            Ray ray = Camera.main.ScreenPointToRay(m_ReticleTransform.position);
+
+            int hits = Physics.RaycastNonAlloc(ray,
+                k_CachedHit,
+                k_AimingRaycastDistance,
+                m_AimingLayerMask);
+
+            if (hits > 0)
+            {
+                if (hits > 1)
+                {
+                    // sort hits by distance
+                    Array.Sort(k_CachedHit, 0, hits, m_RaycastHitComparer);
+                }
+
+                int layerTest = 1 << k_CachedHit[0].collider.gameObject.layer;
+                if ((layerTest & m_TargetLayerMask) != 0)
+                {
+                    m_ReticleImage.color = new Color(1f, 0f, 0f, 1f);   // Red
+                    m_AimPosition = k_CachedHit[0].point;
+                }
+                else
+                {
+                    m_ReticleImage.color = new Color(0f, 1f, 0f, 1f);   // Green
+                    m_AimPosition = k_CachedHit[0].point;
+                }
+            }
+            else
+            {
+                m_ReticleImage.color = new Color(0f, 1f, 0f, 1f);   // Green
+                m_AimPosition = ray.origin + ray.direction * k_AimingRaycastDistance;
+            }
+        }
+
+        public class RaycastHitComparer : IComparer<RaycastHit>
+        {
+            public int Compare(RaycastHit x, RaycastHit y)
+            {
+                return x.distance.CompareTo(y.distance);
+            }
         }
 #endif  // P56
     }

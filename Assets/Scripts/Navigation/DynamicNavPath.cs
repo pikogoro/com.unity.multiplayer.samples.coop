@@ -48,6 +48,19 @@ namespace Unity.BossRoom.Navigation
         /// </summary>
         Transform m_TransformLockOnTarget = null;
         public Transform TransformLockOnTarget { get { return m_TransformLockOnTarget; } }
+
+        const float k_GroundRaycastDistance = 100f;
+        readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
+        LayerMask m_GroundLayerMask;
+        RaycastHitComparer m_RaycastHitComparer;
+
+        public class RaycastHitComparer : IComparer<RaycastHit>
+        {
+            public int Compare(RaycastHit x, RaycastHit y)
+            {
+                return x.distance.CompareTo(y.distance);
+            }
+        }
 #endif  // P56
 
         /// <summary>
@@ -63,9 +76,46 @@ namespace Unity.BossRoom.Navigation
             m_NavigationSystem = navigationSystem;
 
             navigationSystem.OnNavigationMeshChanged += OnNavMeshChanged;
+
+#if P56
+            m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground", "Environment" });
+            m_RaycastHitComparer = new RaycastHitComparer();
+#endif  // P56
         }
 
-        Vector3 TargetPosition => m_TransformTarget != null ? m_TransformTarget.position : m_PositionTarget;
+#if !P56
+        //Vector3 TargetPosition => m_TransformTarget != null ? m_TransformTarget.position : m_PositionTarget;
+#else   // !P56
+        Vector3 TargetPosition
+        {
+            get
+            {
+                if (m_TransformTarget != null)
+                {
+                    Vector3 groundPosition = m_TransformTarget.position;
+                    var ray = new Ray(m_TransformTarget.position + new Vector3(0f, 0.5f, 0f), Vector3.down);
+                    var hits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_GroundRaycastDistance, m_GroundLayerMask);
+
+                    if (hits > 0)
+                    {
+                        if (hits > 1)
+                        {
+                            // sort hits by distance
+                            Array.Sort(k_CachedHit, 0, hits, m_RaycastHitComparer);
+                        }
+
+                        groundPosition = k_CachedHit[0].point;
+                    }
+
+                    return groundPosition;
+                }
+                else
+                {
+                    return m_PositionTarget;
+                }
+            }
+        }
+#endif  // P56
 
         /// <summary>
         /// Set the target of this path to follow a moving transform.

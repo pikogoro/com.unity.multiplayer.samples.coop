@@ -73,6 +73,12 @@ namespace Unity.BossRoom.Gameplay.Actions
                 if (foe != null)
                 {
                     foe.ReceiveHP(clientCharacter, -Config.Amount);
+
+#if P56
+                    // Knockback
+                    ServerCharacter targetCharacter = foe.transform.GetComponent<ServerCharacter>();
+                    targetCharacter.Movement.StartKnockback(clientCharacter.transform.position, 2.1f, 0.4f);
+#endif  // P56
                 }
             }
 

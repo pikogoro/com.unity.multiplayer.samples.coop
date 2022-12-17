@@ -790,19 +790,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     else
                     {
 #if !OVR
-                        if (m_CameraController.IsFPSView)
-                        {
-                            //resultData.Position = m_CameraController.EyesPosition;  // [TBD] position is temporary.
-                            resultData.Position = m_CameraController.MuzzlePosition;  // [TBD] position is temporary.
-                            resultData.Direction = m_MainCamera.transform.forward.normalized;
-                        }
-                        else
-                        {
-                            //resultData.Position = m_CameraController.EyesPosition;  // [TBD] position is temporary.
-                            resultData.Position = m_CameraController.MuzzlePosition;  // [TBD] position is temporary.
-                            Vector3 vector = m_MainCamera.transform.forward * 50f + new Vector3(0f, 3f, 0f);    // [TBD] temporary aiming method for TSP.
-                            resultData.Direction = vector.normalized;
-                        }
+                        resultData.Position = m_CameraController.MuzzleLocalPosition;
+                        resultData.Direction = m_CameraController.AimPosition - m_CameraController.MuzzlePosition;
+                        //if (resultData.Direction.z < 0)
+                        //{
+                        //    resultData.Direction = transform.forward;
+                        //}
 #else   // !OVR
                         resultData.Direction = m_RHandTransform.forward.normalized;
 #endif  // !OVR

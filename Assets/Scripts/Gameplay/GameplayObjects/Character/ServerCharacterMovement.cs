@@ -19,6 +19,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         PathFollowing = 1,
         Charging = 2,
         Knockback = 3,
+#if P56
+        PlayerMovement = 4, // Player only
+#endif  // P56
     }
 
     /// <summary>
@@ -120,10 +123,12 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 return;
             }
 #endif
-            m_MovementState = MovementState.PathFollowing;
 #if !P56
+            m_MovementState = MovementState.PathFollowing;
             m_NavPath.SetTargetPosition(position);
 #else   // !P56
+            m_MovementState = MovementState.PlayerMovement;
+
             if (ActionMovement.IsNull(movement.Position))
             {
                 // if movement position is null, don't move.
@@ -427,7 +432,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     m_IsGrounded = false;
                     m_UpwardVelocity += Physics.gravity.y * Time.fixedDeltaTime;
 
-                    // 
+                    // Trigger "rise" animation transition.
                     m_CharLogic.serverAnimationHandler.NetworkAnimator.SetTrigger("Rise");
                 }
                 else
@@ -451,18 +456,15 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     m_IsGrounded = true;
                     m_UpwardVelocity = 0f;
 
-                    // 
+                    // Trigger "Grounded" animation transition.
                     m_CharLogic.serverAnimationHandler.NetworkAnimator.SetTrigger("Grounded");
                 }
             }
 
             // Change direction.
-            if (m_MovementState == MovementState.Charging || m_MovementState == MovementState.Knockback || ActionMovement.IsNull(m_Rotation))
+            if (m_MovementState == MovementState.Charging || m_MovementState == MovementState.PathFollowing)
             {
-                if (movementVector != Vector3.zero)
-                {
-                    transform.rotation = Quaternion.LookRotation(movementVector);
-                }
+                transform.rotation = Quaternion.LookRotation(movementVector);
             }
 #if UNITY_ANDROID
             else if (m_NavPath.TransformLockOnTarget != null)
@@ -472,7 +474,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #endif  // UNITY_ANDROID
             else
             {
-                transform.rotation = Quaternion.Euler(new Vector3(0f, m_Rotation.eulerAngles.y, 0f));
+                if (!ActionMovement.IsNull(m_Rotation))
+                {
+                    transform.rotation = Quaternion.Euler(new Vector3(0f, m_Rotation.eulerAngles.y, 0f));
+                }
             }
 #endif  // !P56
 

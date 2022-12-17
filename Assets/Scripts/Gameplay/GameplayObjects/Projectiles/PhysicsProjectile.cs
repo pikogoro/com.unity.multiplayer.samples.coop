@@ -283,6 +283,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                         if (k_CachedHit[i].transform.TryGetComponent(out IDamageable damageable))
                         {
                             damageable.ReceiveHP(spawnerObj, -m_ProjectileInfo.Damage);
+
+                            // Knockback
+                            ServerCharacter clientCharacter = k_CachedHit[i].transform.GetComponent<ServerCharacter>();
+                            if (clientCharacter != null)
+                            {
+                                clientCharacter.Movement.StartKnockback(k_CachedHit[i].point, 2.1f, 0.4f);
+                            }
                         }
                     }
 #endif  // !P56

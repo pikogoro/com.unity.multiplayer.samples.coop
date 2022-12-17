@@ -1,9 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Unity.BossRoom.Gameplay.Actions;
 using System;
-using UnityEngine.Assertions;
 
 namespace Unity.BossRoom.Gameplay.GameplayObjects
 {
@@ -115,6 +113,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
             }
 
             return blockedPosition;
+        }
+
+        public class RaycastHitComparer : IComparer<RaycastHit>
+        {
+            public int Compare(RaycastHit x, RaycastHit y)
+            {
+                return x.distance.CompareTo(y.distance);
+            }
         }
     }
 }
