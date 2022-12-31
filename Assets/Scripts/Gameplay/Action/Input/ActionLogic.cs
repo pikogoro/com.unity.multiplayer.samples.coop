@@ -24,6 +24,11 @@ namespace Unity.BossRoom.Gameplay.Actions
         DashAttack,
         ImpToss,
         PickUp,
+#if !P56
         Drop
+#else   // !P56
+        Drop,
+        LaunchHomingProjectile
+#endif  // !P56
     }
 }

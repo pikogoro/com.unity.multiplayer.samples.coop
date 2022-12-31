@@ -109,8 +109,10 @@ namespace Unity.BossRoom.CameraUtils
             m_PositionLerper = new PositionLerper(m_CamTransform.position, k_LerpTime);
             m_RotationLerper = new RotationLerper(m_CamTransform.rotation, k_LerpTime);
 
-            m_AimingLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Environment", "Default", "Ground" });
-            m_TargetLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs" });
+            //m_AimingLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Environment", "Default", "Ground" });
+            m_AimingLayerMask = LayerMask.GetMask(new[] { "NPCs", "Environment", "Default", "Ground" });
+            //m_TargetLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs" });
+            m_TargetLayerMask = LayerMask.GetMask(new[] { "NPCs" });
             m_RaycastHitComparer = new RaycastHitComparer();
 #endif  // P56
         }
@@ -212,7 +214,7 @@ namespace Unity.BossRoom.CameraUtils
                 if (m_HeadGO != null && m_HeadGO.activeSelf)
                 {
                     m_HeadGO.SetActive(false);
-                    m_ReticleTransform.position = m_ReticleOriginalPosition;
+                    //m_ReticleTransform.position = m_ReticleOriginalPosition;
                 }
                 targetPosition = m_EyesPosition;
                 targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
@@ -223,7 +225,7 @@ namespace Unity.BossRoom.CameraUtils
                 if (m_HeadGO != null && !m_HeadGO.activeSelf)
                 {
                     m_HeadGO.SetActive(true);
-                    m_ReticleTransform.position = m_ReticleOriginalPosition + new Vector2(0f, 50f);
+                    //m_ReticleTransform.position = m_ReticleOriginalPosition + new Vector2(0f, 50f);
                 }
                 targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 3f, -4.5f); // [TBD] position is temporary.
                 targetRotation = Quaternion.Euler(15f - m_RotationX, m_RotationY, 0f);

@@ -822,6 +822,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     resultData.CancelMovement = true;
                     resultData.ShouldQueue = false;
                     return;
+#if P56
+                case ActionLogic.LaunchHomingProjectile:
+                    resultData.Direction = direction;
+                    resultData.ShouldClose = false; //why? Because you could be lining up a shot, hoping to hit other people between you and your target. Moving you would be quite invasive.
+                    return;
+#endif  // P56
             }
         }
 
