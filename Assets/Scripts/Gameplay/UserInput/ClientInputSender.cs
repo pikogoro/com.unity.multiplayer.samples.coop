@@ -833,7 +833,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
 
                     resultData.Position = new Vector3(0f, 2f, 0f);
-                    resultData.Direction = Vector3.up;
+                    resultData.Direction = m_CameraController.AimPosition - m_CameraController.MuzzlePosition;
                     resultData.ShouldClose = false; //why? Because you could be lining up a shot, hoping to hit other people between you and your target. Moving you would be quite invasive.
                     return;
 #endif  // P56

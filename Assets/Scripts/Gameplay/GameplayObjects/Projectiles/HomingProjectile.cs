@@ -35,7 +35,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
         const float k_EnemyLingerSec = 0.2f; //time after hitting an enemy that we persist.
         readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
         RaycastHitComparer m_RaycastHitComparer;
-        Vector3 m_HitPoint = Vector3.zero;
 
         /// <summary>
         /// Time when we should destroy this arrow, in Time.time seconds.
@@ -77,6 +76,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
 
         Transform m_TargetTransform;    // Target to homing
 
+        float m_HomingStartTime;
+
         /// <summary>
         /// Set everything up based on provided projectile information.
         /// (Note that this is called before OnNetworkSpawn(), so don't try to do any network stuff here.)
@@ -106,6 +107,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 m_NpcLayer = LayerMask.NameToLayer("NPCs");
 
                 m_RaycastHitComparer = new RaycastHitComparer();
+
+                m_HomingStartTime = Time.fixedTime + 0.3f;
             }
 
             if (IsClient)
@@ -117,7 +120,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 m_PositionLerper = new PositionLerper(transform.position, k_LerpTime);
                 m_Visualization.transform.rotation = transform.rotation;
             }
-
         }
 
         public override void OnNetworkDespawn()
@@ -150,24 +152,19 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 return;
             }
 
-            // Homing
-            transform.LookAt(m_TargetTransform.position + new Vector3(0f, 1.5f, 0f));
-
-
             if (!m_IsDead)
             {
                 DetectCollisions();
             }
 
-            if (m_IsDead && m_HitPoint != Vector3.zero)
+            // Update projectile position after collision check.
+            var displacement = transform.forward * (m_ProjectileInfo.Speed_m_s * Time.fixedDeltaTime);
+            transform.position += displacement;
+
+            if (m_HomingStartTime < Time.fixedTime)
             {
-                transform.position = m_HitPoint;
-            }
-            else
-            {
-                // Update projectile position after collision check.
-                var displacement = transform.forward * (m_ProjectileInfo.Speed_m_s * Time.fixedDeltaTime);
-                transform.position += displacement;
+                // Homing
+                transform.LookAt(m_TargetTransform.position + new Vector3(0f, 1.5f, 0f));
             }
         }
 
@@ -216,7 +213,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                     m_ProjectileInfo.Speed_m_s = 0f;
                     m_IsDead = true;
                     m_DestroyAtSec = Time.fixedTime + k_WallLingerSec;
-                    m_HitPoint = k_CachedHit[i].point;
                     return;
                 }
 

@@ -29,7 +29,8 @@ namespace Unity.BossRoom.Gameplay.Actions
             serverCharacter.clientCharacter.RecvDoActionClientRPC(Data);
 
             m_Position = Data.Position;
-            m_Direction = Data.Direction;
+            //m_Direction = Data.Direction;
+            m_Direction = Vector3.up;
 
             // Only one target
             if (Data.TargetIds == null || Data.TargetIds.Length == 0)

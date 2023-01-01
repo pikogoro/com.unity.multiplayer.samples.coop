@@ -38,7 +38,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
 #else   // !P56
         readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
         RaycastHitComparer m_RaycastHitComparer;
-        Vector3 m_HitPoint = Vector3.zero;
 #endif  // !P56
 
         /// <summary>
@@ -164,15 +163,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
             }
 
 #if P56
-            if (m_IsDead && m_HitPoint != Vector3.zero)
+            // Update projectile position after collision check.
+            var displacement = transform.forward * (m_ProjectileInfo.Speed_m_s * Time.fixedDeltaTime);
+            transform.position += displacement;
+
+            if (m_IsDead)
             {
-                transform.position = m_HitPoint;
-            }
-            else
-            {
-                // Update projectile position after collision check.
-                var displacement = transform.forward * (m_ProjectileInfo.Speed_m_s * Time.fixedDeltaTime);
-                transform.position += displacement;
+                m_ProjectileInfo.Speed_m_s = 0f;
             }
 #endif  // P56
         }
@@ -261,10 +258,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 if ((layerTest & m_BlockerMask) != 0)
                 {
                     //hit a wall; leave it for a couple of seconds.
-                    m_ProjectileInfo.Speed_m_s = 0f;
+                    m_ProjectileInfo.Speed_m_s = k_CachedHit[i].distance / distance;
                     m_IsDead = true;
                     m_DestroyAtSec = Time.fixedTime + k_WallLingerSec;
-                    m_HitPoint = k_CachedHit[i].point;
                     return;
                 }
 
