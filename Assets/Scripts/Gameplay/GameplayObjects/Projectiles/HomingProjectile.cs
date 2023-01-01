@@ -35,6 +35,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
         const float k_EnemyLingerSec = 0.2f; //time after hitting an enemy that we persist.
         readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
         RaycastHitComparer m_RaycastHitComparer;
+        Vector3 m_HitPoint = Vector3.zero;
 
         /// <summary>
         /// Time when we should destroy this arrow, in Time.time seconds.
@@ -150,7 +151,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
             }
 
             // Homing
-            transform.LookAt(m_TargetTransform);
+            transform.LookAt(m_TargetTransform.position + new Vector3(0f, 1.5f, 0f));
 
 
             if (!m_IsDead)
@@ -158,14 +159,15 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 DetectCollisions();
             }
 
-            // Update projectile position after collision check.
-            var displacement = transform.forward * (m_ProjectileInfo.Speed_m_s * Time.fixedDeltaTime);
-            transform.position += displacement;
-
-            if (m_IsDead)
+            if (m_IsDead && m_HitPoint != Vector3.zero)
             {
-                // Stop if hitted.
-                m_ProjectileInfo.Speed_m_s = 0f;
+                transform.position = m_HitPoint;
+            }
+            else
+            {
+                // Update projectile position after collision check.
+                var displacement = transform.forward * (m_ProjectileInfo.Speed_m_s * Time.fixedDeltaTime);
+                transform.position += displacement;
             }
         }
 
@@ -211,9 +213,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 if ((layerTest & m_BlockerMask) != 0)
                 {
                     //hit a wall; leave it for a couple of seconds.
-                    m_ProjectileInfo.Speed_m_s = k_CachedHit[i].distance / distance;    // Move distance remained.
+                    m_ProjectileInfo.Speed_m_s = 0f;
                     m_IsDead = true;
                     m_DestroyAtSec = Time.fixedTime + k_WallLingerSec;
+                    m_HitPoint = k_CachedHit[i].point;
                     return;
                 }
 

@@ -32,13 +32,19 @@ namespace Unity.BossRoom.Gameplay.Actions
             m_Direction = Data.Direction;
 
             // Only one target
-            NetworkObject target = NetworkManager.Singleton.SpawnManager.SpawnedObjects[m_Data.TargetIds[0]];
-            if (target)
+            if (Data.TargetIds == null || Data.TargetIds.Length == 0)
+            {
+                return false;
+            }
+
+            //NetworkObject target = NetworkManager.Singleton.SpawnManager.SpawnedObjects[m_Data.TargetIds[0]];
+            NetworkObject target;
+            if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(Data.TargetIds[0], out target) && target != null)
             {
                 m_TargetTransform = target.transform;
-                return true;
             }
-            return false;
+            
+            return true;
         }
 
         public override void Reset()
@@ -66,7 +72,7 @@ namespace Unity.BossRoom.Gameplay.Actions
         {
             foreach (var projectileInfo in Config.Projectiles)
             {
-                if (projectileInfo.ProjectilePrefab && projectileInfo.ProjectilePrefab.GetComponent<PhysicsProjectile>())
+                if (projectileInfo.ProjectilePrefab && projectileInfo.ProjectilePrefab.GetComponent<HomingProjectile>())
                     return projectileInfo;
             }
             throw new System.Exception($"Action {name} has no usable Projectiles!");

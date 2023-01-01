@@ -824,7 +824,16 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     return;
 #if P56
                 case ActionLogic.LaunchHomingProjectile:
-                    resultData.Direction = direction;
+
+                    Transform target = m_CameraController.Target;
+                    if (target != null)
+                    {
+                        var targetNetObj = target.GetComponentInParent<NetworkObject>();
+                        resultData.TargetIds = new ulong[] { targetNetObj.NetworkObjectId };
+                    }
+
+                    resultData.Position = new Vector3(0f, 2f, 0f);
+                    resultData.Direction = Vector3.up;
                     resultData.ShouldClose = false; //why? Because you could be lining up a shot, hoping to hit other people between you and your target. Moving you would be quite invasive.
                     return;
 #endif  // P56

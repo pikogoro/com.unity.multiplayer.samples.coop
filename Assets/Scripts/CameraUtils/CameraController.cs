@@ -82,6 +82,7 @@ namespace Unity.BossRoom.CameraUtils
         // IK
         Transform m_RightHandRoot = null;
         Transform m_RightHandIKTarget = null;
+        Transform m_RightHandPivot = null;
 
         // Aiming
         Image m_ReticleImage;
@@ -91,6 +92,9 @@ namespace Unity.BossRoom.CameraUtils
         readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
         LayerMask m_AimingLayerMask;
         LayerMask m_TargetLayerMask;
+
+        Transform m_Target;
+        public Transform Target { get { return m_Target; } }
 
         RaycastHitComparer m_RaycastHitComparer;
 #if OVR
@@ -109,10 +113,10 @@ namespace Unity.BossRoom.CameraUtils
             m_PositionLerper = new PositionLerper(m_CamTransform.position, k_LerpTime);
             m_RotationLerper = new RotationLerper(m_CamTransform.rotation, k_LerpTime);
 
-            //m_AimingLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Environment", "Default", "Ground" });
-            m_AimingLayerMask = LayerMask.GetMask(new[] { "NPCs", "Environment", "Default", "Ground" });
-            //m_TargetLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs" });
-            m_TargetLayerMask = LayerMask.GetMask(new[] { "NPCs" });
+            m_AimingLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Environment", "Default", "Ground" });
+            //m_AimingLayerMask = LayerMask.GetMask(new[] { "NPCs", "Environment", "Default", "Ground" });
+            m_TargetLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs" });
+            //m_TargetLayerMask = LayerMask.GetMask(new[] { "NPCs" });
             m_RaycastHitComparer = new RaycastHitComparer();
 #endif  // P56
         }
@@ -155,6 +159,7 @@ namespace Unity.BossRoom.CameraUtils
             if (go != null)
             {
                 m_RightHandIKTarget = go.transform;
+                m_RightHandPivot = go.transform.Find("RightHandPivot");
             }
 
             // Aiming
@@ -227,7 +232,8 @@ namespace Unity.BossRoom.CameraUtils
                     m_HeadGO.SetActive(true);
                     //m_ReticleTransform.position = m_ReticleOriginalPosition + new Vector2(0f, 50f);
                 }
-                targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 3f, -4.5f); // [TBD] position is temporary.
+                //targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 3f, -4.5f); // [TBD] under position
+                targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(1f, 3f, -4.5f); // [TBD] side position
                 targetRotation = Quaternion.Euler(15f - m_RotationX, m_RotationY, 0f);
             }
 
@@ -258,10 +264,13 @@ namespace Unity.BossRoom.CameraUtils
             if (m_RightHandIKTarget != null)
             {
                 m_RightHandIKTarget.localPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 0f, 1f) + m_RightHandRoot.localPosition;
-                m_RightHandIKTarget.localRotation = Quaternion.Euler(90f - m_RotationX, 0f, 0f);
+                m_RightHandIKTarget.localRotation = Quaternion.Euler(90f, 90f, 0f);
+                m_RightHandPivot.localRotation = Quaternion.Euler(0f, -m_RotationX, 0f);
             }
 
             // Aiming
+            m_Target = null;    // Reset target
+
             Ray ray = Camera.main.ScreenPointToRay(m_ReticleTransform.position);
 
             int hits = Physics.RaycastNonAlloc(ray,
@@ -277,16 +286,39 @@ namespace Unity.BossRoom.CameraUtils
                     Array.Sort(k_CachedHit, 0, hits, m_RaycastHitComparer);
                 }
 
-                int layerTest = 1 << k_CachedHit[0].collider.gameObject.layer;
-                if ((layerTest & m_TargetLayerMask) != 0)
+                for (int i = 0; i < hits; i++)
                 {
-                    m_ReticleImage.color = new Color(1f, 0f, 0f, 1f);   // Red
-                    m_AimPosition = k_CachedHit[0].point;
-                }
-                else
-                {
-                    m_ReticleImage.color = new Color(0f, 1f, 0f, 1f);   // Green
-                    m_AimPosition = k_CachedHit[0].point;
+                    if (k_CachedHit[i].collider.gameObject.name != "PlayerAvatar0") // Except self
+                    {
+                        int layerTest = 1 << k_CachedHit[i].collider.gameObject.layer;
+                        if ((layerTest & m_TargetLayerMask) != 0)
+                        {
+                            m_ReticleImage.color = new Color(1f, 0f, 0f, 1f);   // Red
+                            if (k_CachedHit[i].distance < 3f)
+                            {
+                                m_AimPosition = ray.origin + ray.direction * k_AimingRaycastDistance;
+                            }
+                            else
+                            {
+                                m_AimPosition = k_CachedHit[i].point;
+
+                                // Set target
+                                m_Target = k_CachedHit[i].transform;
+                            }
+                        }
+                        else
+                        {
+                            m_ReticleImage.color = new Color(0f, 1f, 0f, 1f);   // Green
+                            m_AimPosition = ray.origin + ray.direction * k_AimingRaycastDistance;
+                        }
+                        break;
+                    }
+
+                    if (i == hits)
+                    {
+                        m_ReticleImage.color = new Color(0f, 1f, 0f, 1f);   // Green
+                        m_AimPosition = ray.origin + ray.direction * k_AimingRaycastDistance;
+                    }
                 }
             }
             else

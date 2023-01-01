@@ -84,7 +84,7 @@ namespace Unity.BossRoom.Navigation
         }
 
 #if !P56
-        //Vector3 TargetPosition => m_TransformTarget != null ? m_TransformTarget.position : m_PositionTarget;
+        Vector3 TargetPosition => m_TransformTarget != null ? m_TransformTarget.position : m_PositionTarget;
 #else   // !P56
         Vector3 TargetPosition
         {
