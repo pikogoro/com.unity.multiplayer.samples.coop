@@ -73,6 +73,23 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         float m_CurrentSpeed;
 
+#if P56
+        CameraController m_CameraController;
+
+        float m_RotationX = 0f;
+
+        // IK
+        GameObject m_RightHandIK = null;
+        public GameObject RightHandIK
+        {
+            set { m_RightHandIK = value; }
+        }
+        Transform m_RightHandIKRoot = null;
+        Transform m_RightHandIKTarget = null;
+        Transform m_RightHandIKPivot = null;
+        Transform m_RightHandIKMuzzle = null;
+#endif  // P56
+
         /// <summary>
         /// /// Server to Client RPC that broadcasts this action play to all clients.
         /// </summary>
@@ -138,6 +155,23 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             m_ServerCharacter.MovementStatus.OnValueChanged += OnMovementStatusChanged;
             OnMovementStatusChanged(MovementStatus.Normal, m_ServerCharacter.MovementStatus.Value);
 
+#if P56
+            if (!m_ServerCharacter.IsOwner)
+            {
+                m_ServerCharacter.RotationX.OnValueChanged += OnRotationXChanged;
+
+                // IK
+                m_RightHandIK = GetComponentInChildren<CharacterSwap>().RightHandIK;
+                if (m_RightHandIK != null)
+                {
+                    m_RightHandIKRoot = m_RightHandIK.transform.Find("RightHandIK_root");
+                    m_RightHandIKTarget = m_RightHandIK.transform.Find("RightHandIK_target");
+                    m_RightHandIKPivot = m_RightHandIKTarget.Find("RightHandIK_pivot");
+                    m_RightHandIKMuzzle = m_RightHandIKPivot.Find("RightHandIK_muzzle");
+                }
+            }
+#endif  // P56
+
             // sync our visualization position & rotation to the most up to date version received from server
             transform.SetPositionAndRotation(m_PhysicsWrapper.Transform.position, m_PhysicsWrapper.Transform.rotation);
             m_LerpedPosition = transform.position;
@@ -167,6 +201,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     m_ClientActionViz.PlayAction(ref data);
                     gameObject.AddComponent<CameraController>();
 
+#if P56
+                    //m_CameraController = GetComponent<CameraController>();
+#endif  // P56
+
                     if (m_ServerCharacter.TryGetComponent(out ClientInputSender inputSender))
                     {
                         // TODO: revisit; anticipated actions would play twice on the host
@@ -177,6 +215,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                         inputSender.ClientMoveEvent += OnMoveInput;
 
 #if P56
+                        /*
                         // Add rig to rig builder and rebuild.
                         Rig rig = GetComponentInChildren<Rig>();
                         if (rig != null)
@@ -187,9 +226,24 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                             rigBuilder.enabled = true;
                             rigBuilder.Build();
                         }
+                        */
 #endif  // !P56
                     }
                 }
+
+#if P56
+                // Add rig to rig builder and rebuild.
+                Rig rig = GetComponentInChildren<Rig>();
+                if (rig != null)
+                {
+                    RigBuilder rigBuilder = GetComponent<RigBuilder>();
+                    rigBuilder.layers.Clear();
+                    rigBuilder.layers.Add(new RigLayer(rig));
+                    rigBuilder.enabled = true;
+                    rigBuilder.Build();
+                }
+#endif  // !P56
+
             }
         }
 
@@ -286,6 +340,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             m_CurrentSpeed = GetVisualMovementSpeed(newValue);
         }
 
+#if P56
+        void OnRotationXChanged(float previousValue, float newValue)
+        {
+            m_RotationX = newValue;
+            //m_CameraController.RotationX = newValue;
+        }
+#endif  // P56
+
         void Update()
         {
             // On the host, Characters are translated via ServerCharacterMovement's FixedUpdate method. To ensure that
@@ -303,6 +365,16 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     m_PhysicsWrapper.Transform.rotation);
                 transform.SetPositionAndRotation(m_LerpedPosition, m_LerpedRotation);
             }
+
+#if P56
+            // IK
+            if (m_RightHandIKTarget != null)
+            {
+                m_RightHandIKTarget.localPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 0f, 1f) + m_RightHandIKRoot.localPosition;
+                m_RightHandIKTarget.localRotation = Quaternion.Euler(90f, 90f, 0f);
+                m_RightHandIKPivot.localRotation = Quaternion.Euler(0f, -m_RotationX, 0f);
+            }
+#endif  // P56
 
             if (m_ClientVisualsAnimator)
             {

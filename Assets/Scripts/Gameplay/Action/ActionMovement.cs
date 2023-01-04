@@ -14,6 +14,7 @@ namespace Unity.BossRoom.Gameplay.Actions
     {
         public Vector3 Position;            // position of character.
         public Quaternion Rotation;         // rotation of character's facing.
+        public float RotationX;
         public float UpwardVelocity;        // upward velocity of character.
 
         public static Vector3 PositionNull
@@ -32,7 +33,8 @@ namespace Unity.BossRoom.Gameplay.Actions
             None = 0,
             HasPosition = 1,
             HasRotation = 1 << 1,
-            HasUpwardVelocity = 1 << 2
+            HasRotationX = 1 << 2,
+            HasUpwardVelocity = 1 << 3
         }
 
         public static bool IsNull(Vector3 value)
@@ -55,6 +57,10 @@ namespace Unity.BossRoom.Gameplay.Actions
             if (!IsNull(Rotation))
             {
                 flags |= PackFlags.HasRotation;
+            }
+            if (RotationX != 0f)
+            {
+                flags |= PackFlags.HasRotationX;
             }
             if (UpwardVelocity != 0f)
             {
@@ -81,6 +87,10 @@ namespace Unity.BossRoom.Gameplay.Actions
             if ((flags & PackFlags.HasRotation) != 0)
             {
                 serializer.SerializeValue(ref Rotation);
+            }
+            if ((flags & PackFlags.HasRotationX) != 0)
+            {
+                serializer.SerializeValue(ref RotationX);
             }
             if ((flags & PackFlags.HasUpwardVelocity) != 0)
             {

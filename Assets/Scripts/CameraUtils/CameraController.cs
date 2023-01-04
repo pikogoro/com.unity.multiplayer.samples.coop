@@ -44,16 +44,6 @@ namespace Unity.BossRoom.CameraUtils
             get { return m_EyesPosition; }  // local position
         }
 
-        Transform m_MuzzleTransform = null;
-        public Vector3 MuzzlePosition
-        {
-            get { return m_MuzzleTransform.position; }  // world position
-        }
-        public Vector3 MuzzleLocalPosition
-        {
-            get { return transform.worldToLocalMatrix.MultiplyPoint(m_MuzzleTransform.position); } // world position -> local position
-        }
-
         public float RotationX
         {
             set { m_RotationX = value; }
@@ -72,6 +62,22 @@ namespace Unity.BossRoom.CameraUtils
             get { return m_AimPosition; }   // world position
         }
 
+        GameObject m_RightHandIK = null;
+        public GameObject RightHandIK
+        {
+            set { m_RightHandIK = value; }
+        }
+
+        Transform m_RightHandIKMuzzle = null;
+        public Vector3 MuzzlePosition
+        {
+            get { return m_RightHandIKMuzzle.position; }  // world position
+        }
+        public Vector3 MuzzleLocalPosition
+        {
+            get { return transform.worldToLocalMatrix.MultiplyPoint(m_RightHandIKMuzzle.position); } // world position -> local position
+        }
+
         // For lerp of camera view.
         PositionLerper m_PositionLerper;
         RotationLerper m_RotationLerper;
@@ -80,9 +86,9 @@ namespace Unity.BossRoom.CameraUtils
         Quaternion m_LerpedRotation;
 
         // IK
-        Transform m_RightHandRoot = null;
+        Transform m_RightHandIKRoot = null;
         Transform m_RightHandIKTarget = null;
-        Transform m_RightHandPivot = null;
+        Transform m_RightHandIKPivot = null;
 
         // Aiming
         Image m_ReticleImage;
@@ -149,13 +155,23 @@ namespace Unity.BossRoom.CameraUtils
             }
 
             // IK
-            GameObject go = GameObject.Find("RightHandRoot");
+            if (m_RightHandIK != null)
+            {
+                m_RightHandIKRoot = m_RightHandIK.transform.Find("RightHandIK_root");
+                m_RightHandIKTarget = m_RightHandIK.transform.Find("RightHandIK_target");
+                m_RightHandIKPivot = m_RightHandIKTarget.Find("RightHandIK_pivot");
+                m_RightHandIKMuzzle = m_RightHandIKPivot.Find("RightHandIK_muzzle");
+            }
+
+            /*
+            // IK
+            GameObject go = transform.Find("RightHandRoot").gameObject;
             if (go != null)
             {
                 m_RightHandRoot = go.transform;
             }
 
-            go = GameObject.Find("RightHandIK_target");
+            go = transform.Find("RightHandIK_target").gameObject;
             if (go != null)
             {
                 m_RightHandIKTarget = go.transform;
@@ -163,13 +179,14 @@ namespace Unity.BossRoom.CameraUtils
             }
 
             // Aiming
-            go = GameObject.Find("muzzle"); // [TBD] "muzzle"
+            go = transform.Find("muzzle").gameObject; // [TBD] "muzzle"
             if (go != null)
             {
                 m_MuzzleTransform = go.transform;
             }
+            */
 
-            go = GameObject.Find("Reticle");
+            GameObject go = GameObject.Find("Reticle");
             if (go != null) {
                 m_ReticleImage = go.GetComponent<Image>();
                 m_ReticleTransform = go.GetComponent<RectTransform>();
@@ -210,6 +227,26 @@ namespace Unity.BossRoom.CameraUtils
             }
 
 #if !OVR
+            /*
+            // IK
+            if (m_RightHandRoot == null)
+            {
+                m_RightHandRoot = transform.Find("RightHandRoot");
+            }
+
+            if (m_RightHandIKTarget == null)
+            {
+                m_RightHandIKTarget = transform.Find("RightHandIK_target");
+                m_RightHandPivot = m_RightHandIKTarget.Find("RightHandPivot");
+            }
+
+            // Aiming
+            if (m_MuzzleTransform == null)
+            {
+                m_MuzzleTransform = transform.Find("muzzle"); // [TBD] "muzzle"
+            }
+            */
+
             Vector3 targetPosition;
             Quaternion targetRotation;
 
@@ -233,7 +270,7 @@ namespace Unity.BossRoom.CameraUtils
                     //m_ReticleTransform.position = m_ReticleOriginalPosition + new Vector2(0f, 50f);
                 }
                 //targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 3f, -4.5f); // [TBD] under position
-                targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(1f, 3f, -4.5f); // [TBD] side position
+                targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(2f, 3f, -4.5f); // [TBD] side position
                 targetRotation = Quaternion.Euler(15f - m_RotationX, m_RotationY, 0f);
             }
 
@@ -263,9 +300,9 @@ namespace Unity.BossRoom.CameraUtils
             // IK
             if (m_RightHandIKTarget != null)
             {
-                m_RightHandIKTarget.localPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 0f, 1f) + m_RightHandRoot.localPosition;
+                m_RightHandIKTarget.localPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 0f, 1f) + m_RightHandIKRoot.localPosition;
                 m_RightHandIKTarget.localRotation = Quaternion.Euler(90f, 90f, 0f);
-                m_RightHandPivot.localRotation = Quaternion.Euler(0f, -m_RotationX, 0f);
+                m_RightHandIKPivot.localRotation = Quaternion.Euler(0f, -m_RotationX, 0f);
             }
 
             // Aiming
@@ -308,7 +345,7 @@ namespace Unity.BossRoom.CameraUtils
                         }
                         else
                         {
-                            m_ReticleImage.color = new Color(0f, 1f, 0f, 1f);   // Green
+                            m_ReticleImage.color = new Color(1f, 1f, 1f, 1f);   // Green
                             m_AimPosition = ray.origin + ray.direction * k_AimingRaycastDistance;
                         }
                         break;
@@ -316,14 +353,14 @@ namespace Unity.BossRoom.CameraUtils
 
                     if (i == hits)
                     {
-                        m_ReticleImage.color = new Color(0f, 1f, 0f, 1f);   // Green
+                        m_ReticleImage.color = new Color(1f, 1f, 1f, 1f);   // Green
                         m_AimPosition = ray.origin + ray.direction * k_AimingRaycastDistance;
                     }
                 }
             }
             else
             {
-                m_ReticleImage.color = new Color(0f, 1f, 0f, 1f);   // Green
+                m_ReticleImage.color = new Color(1f, 1f, 1f, 1f);   // Green
                 m_AimPosition = ray.origin + ray.direction * k_AimingRaycastDistance;
             }
         }

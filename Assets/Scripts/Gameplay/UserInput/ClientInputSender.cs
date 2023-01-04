@@ -264,6 +264,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             m_CameraController = GetComponentInChildren<CameraController>();
             m_CameraController.HeadGO = GetComponentInChildren<CharacterSwap>().HeadGO;
             m_CameraController.EyesGO = GetComponentInChildren<CharacterSwap>().EyesGO;
+            m_CameraController.RightHandIK = GetComponentInChildren<CharacterSwap>().RightHandIK;
 
             GameObject joystick = GameObject.Find("Joystick");
 #if UNITY_STANDALONE || OVR
@@ -577,6 +578,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                             m_MoveRequest = false;
                         }
+
+                        movement.RotationX = m_LastRotationX;
 
                         // Set upward velocity and reset jump state.
                         movement.UpwardVelocity = m_UpwardVelocity;

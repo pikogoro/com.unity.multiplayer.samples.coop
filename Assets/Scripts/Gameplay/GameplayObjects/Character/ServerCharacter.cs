@@ -160,6 +160,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         [SerializeField]
         float m_KnockbackDuration = 0.4f;
+
+        // 
+        public NetworkVariable<float> RotationX { get; } = new NetworkVariable<float>();
 #endif  // P56
 
         void Awake()

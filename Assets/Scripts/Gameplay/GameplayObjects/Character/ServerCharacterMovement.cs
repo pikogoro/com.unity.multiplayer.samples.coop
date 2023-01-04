@@ -51,6 +51,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         const float k_MaxNavMeshDistance = 1f;
         bool m_IsOnNavmesh = true;
         Vector3 m_MovementPosition;
+
+        float m_RotationX;
+        float m_PreviousRotationX;
 #endif  // P56
 
         private MovementState m_MovementState;
@@ -158,6 +161,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_HasLockOnTarget = false;  // Reset lock on.
                 m_Rotation = movement.Rotation;
             }
+
+            m_RotationX = movement.RotationX;
 
             // For jump
 #if USE_THRUSTER
@@ -283,6 +288,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_CharLogic.MovementStatus.Value = currentState;
                 m_PreviousState = currentState;
             }
+
+#if P56
+            if (m_PreviousRotationX != m_RotationX)
+            {
+                m_CharLogic.RotationX.Value = m_RotationX;
+                m_PreviousRotationX = m_RotationX;
+            }
+#endif  // P56
         }
 
         public override void OnNetworkDespawn()

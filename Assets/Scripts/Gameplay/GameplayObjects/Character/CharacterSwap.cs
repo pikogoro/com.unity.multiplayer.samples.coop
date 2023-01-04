@@ -33,6 +33,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             public UnityEngine.Avatar avatarOverrides; // reference an humanoid avatar
             public GameObject headGO;
             public GameObject eyesGO;
+            public GameObject rightHandIK;
 #endif  // P56
 
             public void SetFullActive(bool isActive)
@@ -107,6 +108,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             get
             {
                 return m_CharacterModel.eyesGO;
+            }
+        }
+
+        public GameObject RightHandIK
+        {
+            get
+            {
+                return m_CharacterModel.rightHandIK;
             }
         }
 #endif  // P56
