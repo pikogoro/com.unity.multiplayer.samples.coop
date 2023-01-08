@@ -214,6 +214,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         }
 
 #if P56
+        /*
         public void LockOnTransform(Transform lockOnTransform)
         {
             if (lockOnTransform != null)
@@ -227,6 +228,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_HasLockOnTarget = false;
             }
         }
+        */
 #endif  // P56
 
         /// <summary>

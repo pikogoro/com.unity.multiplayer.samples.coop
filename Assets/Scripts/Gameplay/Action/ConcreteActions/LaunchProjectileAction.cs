@@ -22,8 +22,16 @@ namespace Unity.BossRoom.Gameplay.Actions
 
         public override bool OnStart(ServerCharacter serverCharacter)
         {
+#if !P56
             //snap to face the direction we're firing, and then broadcast the animation, which we do immediately.
             serverCharacter.physicsWrapper.Transform.forward = Data.Direction;
+#else   // !P56
+            if (serverCharacter.IsNpc)  // Only NPC
+            {
+                //snap to face the direction we're firing, and then broadcast the animation, which we do immediately.
+                serverCharacter.physicsWrapper.Transform.forward = Data.Direction;
+            }
+#endif  // !P56
 
             serverCharacter.serverAnimationHandler.NetworkAnimator.SetTrigger(Config.Anim);
             serverCharacter.clientCharacter.RecvDoActionClientRPC(Data);
@@ -92,7 +100,6 @@ namespace Unity.BossRoom.Gameplay.Actions
 
                 no.transform.position = parent.physicsWrapper.Transform.localToWorldMatrix.MultiplyPoint(m_Position);
 #endif  // !P56
-
                 no.GetComponent<PhysicsProjectile>().Initialize(parent.NetworkObjectId, projectileInfo);
 
                 no.Spawn(true);

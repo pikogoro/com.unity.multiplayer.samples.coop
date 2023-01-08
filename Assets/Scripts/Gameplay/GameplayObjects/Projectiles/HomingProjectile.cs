@@ -161,10 +161,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
             var displacement = transform.forward * (m_ProjectileInfo.Speed_m_s * Time.fixedDeltaTime);
             transform.position += displacement;
 
-            if (m_HomingStartTime < Time.fixedTime)
+            if (m_HomingStartTime < Time.fixedTime && m_TargetTransform != null)
             {
                 // Homing
-                transform.LookAt(m_TargetTransform.position + new Vector3(0f, 1.5f, 0f));
+                transform.LookAt(m_TargetTransform.position + new Vector3(0f, 1f, 0f));
             }
         }
 
@@ -189,7 +189,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                     m_Visualization.position = transform.position;
                 }
             }
-
         }
 
         void DetectCollisions()

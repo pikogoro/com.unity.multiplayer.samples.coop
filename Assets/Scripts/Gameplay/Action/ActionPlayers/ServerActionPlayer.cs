@@ -185,7 +185,7 @@ namespace Unity.BossRoom.Gameplay.Actions
 
                 int index = SynthesizeTargetIfNecessary(0);
                 SynthesizeChaseIfNecessary(index);
-
+                
                 m_Queue[0].TimeStarted = Time.time;
                 bool play = m_Queue[0].OnStart(m_ServerCharacter);
                 if (!play)
@@ -250,6 +250,13 @@ namespace Unity.BossRoom.Gameplay.Actions
         {
             Action baseAction = m_Queue[baseIndex];
             var targets = baseAction.Data.TargetIds;
+
+#if P56
+            if (!m_ServerCharacter.IsNpc)   // Player doesn't need target action.
+            {
+                return baseIndex;
+            }
+#endif  // P56
 
             if (targets != null &&
                 targets.Length == 1 &&

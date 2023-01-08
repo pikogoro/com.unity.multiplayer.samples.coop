@@ -117,6 +117,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 m_Visualization.parent = null;
 
                 m_PositionLerper = new PositionLerper(transform.position, k_LerpTime);
+#if P56
+                m_Visualization.transform.position = transform.position;    // ???
+#endif  // P56
                 m_Visualization.transform.rotation = transform.rotation;
             }
 

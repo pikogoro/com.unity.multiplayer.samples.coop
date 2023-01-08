@@ -75,7 +75,7 @@ namespace Unity.BossRoom.Gameplay.Actions
                 if (!parent.IsNpc)
                 {
                     // If player character, do not face to target but lock on it.
-                    parent.Movement.LockOnTransform(targetObject.transform);
+                    //parent.Movement.LockOnTransform(targetObject.transform);
                     return;
                 }
 #endif  // P56

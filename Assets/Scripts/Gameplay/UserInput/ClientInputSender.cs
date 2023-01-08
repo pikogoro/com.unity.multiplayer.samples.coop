@@ -395,9 +395,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                 // Calculate otation Y.
                 float rotationY = m_LastRotationY + yaw;
-                float rotationDelta = Math.Abs(rotationY - m_LastSentRotationY);
+                float rotationDeltaX = Math.Abs(rotationX - m_LastRotationX);
+                float rotationDeltaY = Math.Abs(rotationY - m_LastSentRotationY);
                 rotation = Quaternion.Euler(0f, rotationY, 0f);
-                if (rotationDelta > 1f)
+                if (rotationDeltaX > 1f || rotationDeltaY > 1f)
                 {
                     // Start rotation.
                     m_RotationState = RotationState.Rotating;
@@ -633,8 +634,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 int numHits = 0;
                 if (triggerStyle == SkillTriggerStyle.MouseClick)
                 {
-#if !P56
+//#if !P56
                     var ray = m_MainCamera.ScreenPointToRay(UnityEngine.Input.mousePosition);
+/*
 #else   // !P56
 #if !OVR
                     var ray = m_MainCamera.ScreenPointToRay(UnityEngine.Input.mousePosition);
@@ -643,10 +645,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     var ray = new Ray(m_RHandTransform.position, m_RHandTransform.forward);
 #endif  // !OVR
 #endif  // !P56
+*/
                     numHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_MouseInputRaycastDistance, m_ActionLayerMask);
                 }
 
                 int networkedHitIndex = -1;
+/*
 #if P56
                 // Choose the closest object. 
                 if (numHits > 1)
@@ -655,6 +659,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     Array.Sort(k_CachedHit, 0, numHits, m_RaycastHitComparer);
                 }
 #endif  // P56
+*/
                 for (int i = 0; i < numHits; i++)
                 {
                     if (k_CachedHit[i].transform.GetComponentInParent<NetworkObject>())
@@ -681,12 +686,14 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 // in the desired direction. For others, like mage's bolts, this will fire a "miss" projectile at the spot clicked on.)
 
                 var data = new ActionRequestData();
-#if !P56
+//#if !P56
                 PopulateSkillRequest(k_CachedHit[0].point, actionID, ref data);
+/*
 #else   // !P56
                 // If target is nothing, set direction to the character's facing.
                 PopulateSkillRequest(transform.position + transform.forward, actionID, ref data, false);
 #endif  // !P56
+*/
 
                 SendInput(data);
             }
@@ -746,11 +753,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
             // record our target in case this action uses that info (non-targeted attacks will ignore this)
             resultData.ActionID = actionID;
             resultData.TargetIds = new ulong[] { targetNetObj.NetworkObjectId };
-#if !P56
+//#if !P56
             PopulateSkillRequest(targetHitPoint, actionID, ref resultData);
+/*
 #else   // !P56
             PopulateSkillRequest(targetHitPoint, actionID, ref resultData, true);
 #endif  // !P56
+*/
             return true;
         }
 
@@ -760,11 +769,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
         /// <param name="hitPoint">The point in world space where the click ray hit the target.</param>
         /// <param name="actionID">The action to perform (will be stamped on the resultData)</param>
         /// <param name="resultData">The ActionRequestData to be filled out with additional information.</param>
-#if !P56
+//#if !P56
         void PopulateSkillRequest(Vector3 hitPoint, ActionID actionID, ref ActionRequestData resultData)
+/*
 #else   // !P56
         void PopulateSkillRequest(Vector3 hitPoint, ActionID actionID, ref ActionRequestData resultData, bool existsTarget)
 #endif  // !P56
+*/
         {
             resultData.ActionID = actionID;
             var actionConfig = GameDataSource.Instance.GetActionPrototypeByID(actionID).Config;
@@ -786,12 +797,14 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if !P56
                     resultData.Direction = direction;
 #else   // !P56
+                    /*
                     if (existsTarget)
                     {
                         resultData.Direction = direction;
                     }
                     else
                     {
+                    */
 #if !OVR
                         resultData.Position = m_CameraController.MuzzleLocalPosition;
                         resultData.Direction = m_CameraController.AimPosition - m_CameraController.MuzzlePosition;
@@ -802,7 +815,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #else   // !OVR
                         resultData.Direction = m_RHandTransform.forward.normalized;
 #endif  // !OVR
-                    }
+                    //}
 #endif  // !P56
                     resultData.ShouldClose = false; //why? Because you could be lining up a shot, hoping to hit other people between you and your target. Moving you would be quite invasive.
                     return;
@@ -826,6 +839,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     resultData.ShouldQueue = false;
                     return;
 #if P56
+                /*
                 case ActionLogic.LaunchHomingProjectile:
 
                     Transform target = m_CameraController.Target;
@@ -839,6 +853,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     resultData.Direction = m_CameraController.AimPosition - m_CameraController.MuzzlePosition;
                     resultData.ShouldClose = false; //why? Because you could be lining up a shot, hoping to hit other people between you and your target. Moving you would be quite invasive.
                     return;
+                */
 #endif  // P56
             }
         }
@@ -965,21 +980,21 @@ namespace Unity.BossRoom.Gameplay.UserInput
             if (!EventSystem.current.IsPointerOverGameObject())
             {
                 // Handle mouse click event on right mouse button.
-                if (UnityEngine.Input.GetMouseButtonDown(1) && m_CurrentSkillInput == null)
+                //if (UnityEngine.Input.GetMouseButtonDown(1) && m_CurrentSkillInput == null)
+                if (UnityEngine.Input.GetMouseButtonDown(0) && m_CurrentSkillInput == null)
                 {
                     switch (m_SelectedAction)
                     {
+                        // Always event is regarded as keyboard event
+
                         case 1:
                             RequestAction(actionState1.actionID, SkillTriggerStyle.Keyboard);
-                            //RequestAction(actionState1.actionID, SkillTriggerStyle.MouseClick);
                             break;
                         case 2:
                             RequestAction(actionState2.actionID, SkillTriggerStyle.Keyboard);
-                            //RequestAction(actionState2.actionID, SkillTriggerStyle.MouseClick);
                             break;
                         case 3:
                             RequestAction(actionState3.actionID, SkillTriggerStyle.Keyboard);
-                            //RequestAction(actionState3.actionID, SkillTriggerStyle.MouseClick);
                             break;
                         case 4:
                             RequestAction(GameDataSource.Instance.Emote1ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
@@ -997,7 +1012,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
                             break;
                     }
                 }
-                else if (UnityEngine.Input.GetMouseButtonUp(1))
+                //else if (UnityEngine.Input.GetMouseButtonUp(1))
+                else if (UnityEngine.Input.GetMouseButtonUp(0))
                 {
                     switch (m_SelectedAction)
                     {
@@ -1018,7 +1034,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 // Handle mouse click event on left mouse button.
                 if (UnityEngine.Input.GetMouseButtonDown(0) && m_CurrentSkillInput == null)
                 {
-                    RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
+                    //RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
 
                     // If mouse cursor is not locked, lock it.
                     if (Cursor.lockState == CursorLockMode.None)

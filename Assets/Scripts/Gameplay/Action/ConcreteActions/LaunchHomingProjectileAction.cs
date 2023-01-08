@@ -22,15 +22,17 @@ namespace Unity.BossRoom.Gameplay.Actions
 
         public override bool OnStart(ServerCharacter serverCharacter)
         {
-            //snap to face the direction we're firing, and then broadcast the animation, which we do immediately.
-            serverCharacter.physicsWrapper.Transform.forward = Data.Direction;
+            if (serverCharacter.IsNpc)  // Only NPC
+            {
+                //snap to face the direction we're firing, and then broadcast the animation, which we do immediately.
+                serverCharacter.physicsWrapper.Transform.forward = Data.Direction;
+            }
 
             serverCharacter.serverAnimationHandler.NetworkAnimator.SetTrigger(Config.Anim);
             serverCharacter.clientCharacter.RecvDoActionClientRPC(Data);
 
             m_Position = Data.Position;
-            //m_Direction = Data.Direction;
-            m_Direction = Vector3.up;
+            m_Direction = Data.Direction;
 
             // Only one target
             if (Data.TargetIds == null || Data.TargetIds.Length == 0)
