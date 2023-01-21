@@ -54,6 +54,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         float m_RotationX;
         float m_PreviousRotationX;
+
+        Vector3 m_MovementDirection;
+        Vector3 m_PreviousMovementDirection;
 #endif  // P56
 
         private MovementState m_MovementState;
@@ -297,6 +300,12 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_CharLogic.RotationX.Value = m_RotationX;
                 m_PreviousRotationX = m_RotationX;
             }
+
+            if (m_PreviousMovementDirection != m_MovementDirection)
+            {
+                m_CharLogic.MovementDirection.Value = m_MovementDirection;
+                m_PreviousMovementDirection = m_MovementDirection;
+            }
 #endif  // P56
         }
 
@@ -362,6 +371,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     tmpPosition.y = transform.position.y;
                     movementVector = (tmpPosition - transform.position).normalized * desiredMovementAmount;
                 }
+
+                m_MovementDirection = transform.InverseTransformDirection(movementVector).normalized;
 #endif  // !P56
 
 #if !P56

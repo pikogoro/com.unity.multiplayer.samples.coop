@@ -29,6 +29,11 @@ namespace Unity.BossRoom.Gameplay.Configuration
         [Tooltip("Tag that should be on the \"do nothing\" default nodes of each animator layer")]
         [SerializeField] string m_BaseNodeTag = "BaseNode";
 
+#if P56
+        [SerializeField] string m_SpeedFBVariable = "SpeedFB";  // Forward/Backward speed
+        [SerializeField] string m_SpeedLRVariable = "SpeedLR";  // Left/Right speed
+#endif  // P56
+
         [Header("Animation Speeds")]
         [Tooltip("The animator Speed value when character is dead")]
         public float SpeedDead = 0;
@@ -66,6 +71,11 @@ namespace Unity.BossRoom.Gameplay.Configuration
         [SerializeField] [HideInInspector] public int SpeedVariableID;
         [SerializeField] [HideInInspector] public int BaseNodeTagID;
 
+#if P56
+        [SerializeField] [HideInInspector] public int SpeedFBVariableID;
+        [SerializeField] [HideInInspector] public int SpeedLRVariableID;
+#endif  // P56
+
         void OnValidate()
         {
             AliveStateTriggerID = Animator.StringToHash(m_AliveStateTrigger);
@@ -77,6 +87,11 @@ namespace Unity.BossRoom.Gameplay.Configuration
 
             SpeedVariableID = Animator.StringToHash(m_SpeedVariable);
             BaseNodeTagID = Animator.StringToHash(m_BaseNodeTag);
+
+#if P56
+            SpeedFBVariableID = Animator.StringToHash(m_SpeedFBVariable);
+            SpeedLRVariableID = Animator.StringToHash(m_SpeedLRVariable);
+#endif  // P56
         }
     }
 }

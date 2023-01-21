@@ -37,11 +37,14 @@ namespace Unity.BossRoom.Gameplay.UI
 
         void LateUpdate()
         {
-            m_WorldPos.Set(m_TargetTransform.position.x,
-                m_TargetTransform.position.y + m_VerticalWorldOffset,
-                m_TargetTransform.position.z);
+            if (m_TargetTransform != null)
+            {
+                m_WorldPos.Set(m_TargetTransform.position.x,
+                    m_TargetTransform.position.y + m_VerticalWorldOffset,
+                    m_TargetTransform.position.z);
 
-            m_UIStateRectTransform.position = Camera.main.WorldToScreenPoint(m_WorldPos) + m_VerticalOffset;
+                m_UIStateRectTransform.position = Camera.main.WorldToScreenPoint(m_WorldPos) + m_VerticalOffset;
+            }
         }
     }
 }

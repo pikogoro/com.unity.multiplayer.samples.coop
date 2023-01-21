@@ -74,11 +74,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         float m_CurrentSpeed;
 
 #if P56
-        CameraController m_CameraController;
-
-        float m_RotationX = 0f;
+        Vector3 m_CurrentMovementDirection;
 
         // IK
+        float m_RotationX = 0f;
+
         GameObject m_RightHandIK = null;
         public GameObject RightHandIK
         {
@@ -156,6 +156,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             OnMovementStatusChanged(MovementStatus.Normal, m_ServerCharacter.MovementStatus.Value);
 
 #if P56
+            m_ServerCharacter.MovementDirection.OnValueChanged += OnMovementDirectionChanged;
+
             if (!m_ServerCharacter.IsOwner)
             {
                 m_ServerCharacter.RotationX.OnValueChanged += OnRotationXChanged;
@@ -201,10 +203,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     m_ClientActionViz.PlayAction(ref data);
                     gameObject.AddComponent<CameraController>();
 
-#if P56
-                    //m_CameraController = GetComponent<CameraController>();
-#endif  // P56
-
                     if (m_ServerCharacter.TryGetComponent(out ClientInputSender inputSender))
                     {
                         // TODO: revisit; anticipated actions would play twice on the host
@@ -213,21 +211,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                             inputSender.ActionInputEvent += OnActionInput;
                         }
                         inputSender.ClientMoveEvent += OnMoveInput;
-
-#if P56
-                        /*
-                        // Add rig to rig builder and rebuild.
-                        Rig rig = GetComponentInChildren<Rig>();
-                        if (rig != null)
-                        {
-                            RigBuilder rigBuilder = GetComponent<RigBuilder>();
-                            rigBuilder.layers.Clear();
-                            rigBuilder.layers.Add(new RigLayer(rig));
-                            rigBuilder.enabled = true;
-                            rigBuilder.Build();
-                        }
-                        */
-#endif  // !P56
                     }
                 }
 
@@ -243,7 +226,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     rigBuilder.Build();
                 }
 #endif  // !P56
-
             }
         }
 
@@ -341,10 +323,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         }
 
 #if P56
+        void OnMovementDirectionChanged(Vector3 previousValue, Vector3 newValue)
+        {
+            m_CurrentMovementDirection = newValue;
+        }
+
         void OnRotationXChanged(float previousValue, float newValue)
         {
             m_RotationX = newValue;
-            //m_CameraController.RotationX = newValue;
         }
 #endif  // P56
 
@@ -378,8 +364,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
             if (m_ClientVisualsAnimator)
             {
+#if !P56
                 // set Animator variables here
                 OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedVariableID, m_CurrentSpeed);
+#else   // !P56
+                // set Animator variables here
+                OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedFBVariableID, m_CurrentMovementDirection.z * m_CurrentSpeed);
+                OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedLRVariableID, m_CurrentMovementDirection.x * m_CurrentSpeed);
+#endif  // !P56
             }
 
             m_ClientActionViz.OnUpdate();

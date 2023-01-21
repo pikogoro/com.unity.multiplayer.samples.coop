@@ -47,5 +47,9 @@ namespace Unity.BossRoom.Gameplay.Configuration
 
         [Tooltip("For players, this is the class banner (when inactive). (Not used for monsters)")]
         public Sprite ClassBannerUnlit;
+
+        //public float Skill1IntervalTime;
+        //public float Skill2IntervalTime;
+        //public float Skill3IntervalTime;
     }
 }

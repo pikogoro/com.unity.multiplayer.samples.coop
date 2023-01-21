@@ -48,6 +48,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// Indicates how the character's movement should be depicted.
         public NetworkVariable<MovementStatus> MovementStatus { get; } = new NetworkVariable<MovementStatus>();
 
+#if P56
+        // Indicates the character's movement direction (normalized).
+        public NetworkVariable<Vector3> MovementDirection { get; } = new NetworkVariable<Vector3>();
+#endif  // P56
+
         public NetworkVariable<ulong> HeldNetworkObject { get; } = new NetworkVariable<ulong>();
 
         /// <summary>
@@ -161,7 +166,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         [SerializeField]
         float m_KnockbackDuration = 0.4f;
 
-        // 
+        // IK
         public NetworkVariable<float> RotationX { get; } = new NetworkVariable<float>();
 #endif  // P56
 
@@ -465,6 +470,5 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// This character's AIBrain. Will be null if this is not an NPC.
         /// </summary>
         public AIBrain AIBrain { get { return m_AIBrain; } }
-
     }
 }

@@ -38,6 +38,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
 #else   // !P56
         readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
         RaycastHitComparer m_RaycastHitComparer;
+        Transform m_LauncherTransform;
 #endif  // !P56
 
         /// <summary>
@@ -82,8 +83,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
         /// Set everything up based on provided projectile information.
         /// (Note that this is called before OnNetworkSpawn(), so don't try to do any network stuff here.)
         /// </summary>
+#if !P56
         public void Initialize(ulong creatorsNetworkObjectId, in ProjectileInfo projectileInfo)
         {
+#else   // !P56
+        public void Initialize(ulong creatorsNetworkObjectId, in ProjectileInfo projectileInfo, in Transform launcherTransform)
+        {
+            m_LauncherTransform = launcherTransform;
+#endif  // !P56
             m_SpawnerId = creatorsNetworkObjectId;
             m_ProjectileInfo = projectileInfo;
         }
@@ -103,7 +110,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 m_CollisionMask = LayerMask.GetMask(new[] { "NPCs", "Default", "Environment" });
                 m_BlockerMask = LayerMask.GetMask(new[] { "Default", "Environment" });
 #else   // !P56
-                m_CollisionMask = LayerMask.GetMask(new[] { "NPCs", "Ground", "Environment" });
+                m_CollisionMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Ground", "Environment" });
                 m_BlockerMask = LayerMask.GetMask(new[] { "Ground", "Environment" });
                 m_RaycastHitComparer = new RaycastHitComparer();
 #endif  // !P56
@@ -267,7 +274,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                     return;
                 }
 
-                if (k_CachedHit[i].collider.gameObject.layer == m_NpcLayer && !m_HitTargets.Contains(k_CachedHit[i].collider.gameObject))
+                if (k_CachedHit[i].transform == m_LauncherTransform)
+                {
+                    continue;
+                }
+
+                //if (k_CachedHit[i].collider.gameObject.layer == m_NpcLayer && !m_HitTargets.Contains(k_CachedHit[i].collider.gameObject))
+                if (!m_HitTargets.Contains(k_CachedHit[i].collider.gameObject))
                 {
                     m_HitTargets.Add(k_CachedHit[i].collider.gameObject);
 
