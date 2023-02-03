@@ -12,9 +12,12 @@ namespace Unity.BossRoom.CameraUtils
 {
     public class CameraController : MonoBehaviour
     {
+#if !P56
         private CinemachineFreeLook m_MainCamera;
+#else   //!P56
+        private CinemachineVirtualCamera m_MainCamera;
+        private CinemachineTransposer m_Transposer;
 
-#if P56
         bool m_IsFPSView = true;
 
         public bool IsFPSView
@@ -110,14 +113,16 @@ namespace Unity.BossRoom.CameraUtils
             set { m_BaseRotationY = value; }
         }
 #endif  // OVR
-#endif  // P56
+#endif  // !P56
 
         void Start()
         {
             AttachCamera();
 #if P56
+#if OVR
             m_PositionLerper = new PositionLerper(m_CamTransform.position, k_LerpTime);
-            m_RotationLerper = new RotationLerper(m_CamTransform.rotation, k_LerpTime);
+#endif  // OVR
+            m_RotationLerper = new RotationLerper(m_MainCamera.transform.localRotation, k_LerpTime);
 
             m_AimingLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Environment", "Default", "Ground" });
             //m_AimingLayerMask = LayerMask.GetMask(new[] { "NPCs", "Environment", "Default", "Ground" });
@@ -143,16 +148,22 @@ namespace Unity.BossRoom.CameraUtils
                 m_MainCamera.m_YAxis.Value = 0.5f;
             }
 #else   // !P56
-            // Inactive "CMCameraPrefab".
-            GameObject cmCameraPrefab = GameObject.Find("CMCameraPrefab");            
-            cmCameraPrefab.SetActive(false);
+            m_MainCamera = GameObject.FindObjectOfType<CinemachineVirtualCamera>();
+            Assert.IsNotNull(m_MainCamera, "CameraController.AttachCamera: Couldn't find gameplay virtual camera");
+
+            m_Transposer = m_MainCamera.GetComponentInChildren<CinemachineTransposer>();
+
+            if (m_MainCamera)
+            {
+                m_MainCamera.Follow = transform;
+            }
 
             // Setup eyes position.
-            if (m_EyesGO != null)
-            {
-                m_EyesPosition = m_EyesGO.transform.localPosition;
-                m_EyesPosition.x = 0f;
-            }
+            //if (m_EyesGO != null)
+            //{
+            //    m_EyesPosition = m_EyesGO.transform.localPosition;
+            //    m_EyesPosition.x = 0f;
+            //}
 
             // IK
             if (m_RightHandIK != null)
@@ -163,29 +174,6 @@ namespace Unity.BossRoom.CameraUtils
                 m_RightHandIKMuzzle = m_RightHandIKPivot.Find("RightHandIK_muzzle");
             }
 
-            /*
-            // IK
-            GameObject go = transform.Find("RightHandRoot").gameObject;
-            if (go != null)
-            {
-                m_RightHandRoot = go.transform;
-            }
-
-            go = transform.Find("RightHandIK_target").gameObject;
-            if (go != null)
-            {
-                m_RightHandIKTarget = go.transform;
-                m_RightHandPivot = go.transform.Find("RightHandPivot");
-            }
-
-            // Aiming
-            go = transform.Find("muzzle").gameObject; // [TBD] "muzzle"
-            if (go != null)
-            {
-                m_MuzzleTransform = go.transform;
-            }
-            */
-
             GameObject go = GameObject.Find("Reticle");
             if (go != null) {
                 m_ReticleImage = go.GetComponent<Image>();
@@ -194,14 +182,7 @@ namespace Unity.BossRoom.CameraUtils
             }
 
             // Set main camera for FPS view
-#if !OVR
-            m_CamTransform = Camera.main.gameObject.transform;
-            m_CamTransform.parent = transform;
-            m_CamTransform.localPosition = m_EyesPosition;
-
-            m_LerpedPosition = m_CamTransform.localPosition;
-            m_LerpedRotation = m_CamTransform.rotation; // rotation is not local.
-#else   // !OVR
+#if OVR
             m_CamTransform = GameObject.Find("OVRCameraRig").transform;
 
             if (m_BoneHead != null)
@@ -213,7 +194,7 @@ namespace Unity.BossRoom.CameraUtils
             m_CamTransform.position += transform.forward * 0.3f;
 
             m_LerpedPosition = m_CamTransform.position;
-#endif  // !OVR
+#endif  // OVR
 #endif  // !P56
         }
 
@@ -227,27 +208,6 @@ namespace Unity.BossRoom.CameraUtils
             }
 
 #if !OVR
-            /*
-            // IK
-            if (m_RightHandRoot == null)
-            {
-                m_RightHandRoot = transform.Find("RightHandRoot");
-            }
-
-            if (m_RightHandIKTarget == null)
-            {
-                m_RightHandIKTarget = transform.Find("RightHandIK_target");
-                m_RightHandPivot = m_RightHandIKTarget.Find("RightHandPivot");
-            }
-
-            // Aiming
-            if (m_MuzzleTransform == null)
-            {
-                m_MuzzleTransform = transform.Find("muzzle"); // [TBD] "muzzle"
-            }
-            */
-
-            Vector3 targetPosition;
             Quaternion targetRotation;
 
             if (m_IsFPSView)
@@ -257,8 +217,13 @@ namespace Unity.BossRoom.CameraUtils
                 {
                     m_HeadGO.SetActive(false);
                     //m_ReticleTransform.position = m_ReticleOriginalPosition;
+                    m_MainCamera.Follow = m_EyesGO.transform;
+                    m_MainCamera.LookAt = null;
+                    m_Transposer.m_FollowOffset = Vector3.zero;
+                    m_Transposer.m_XDamping = 0f;
+                    m_Transposer.m_YDamping = 0f;
+                    m_Transposer.m_ZDamping = 0f;
                 }
-                targetPosition = m_EyesPosition;
                 targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
             }
             else
@@ -268,18 +233,23 @@ namespace Unity.BossRoom.CameraUtils
                 {
                     m_HeadGO.SetActive(true);
                     //m_ReticleTransform.position = m_ReticleOriginalPosition + new Vector2(0f, 50f);
+                    m_MainCamera.Follow = m_EyesGO.transform;
+                    m_MainCamera.LookAt = m_EyesGO.transform;
+                    m_Transposer.m_FollowOffset = new Vector3(1f, 0.5f, -4f);
+                    m_Transposer.m_XDamping = 0.1f;
+                    m_Transposer.m_YDamping = 0.1f;
+                    m_Transposer.m_ZDamping = 1f;
                 }
-                //targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 3f, -4.5f); // [TBD] under position
-                targetPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(2f, 3f, -4.5f); // [TBD] side position
-                targetRotation = Quaternion.Euler(15f - m_RotationX, m_RotationY, 0f);
+                float offsetY = m_RotationX / 30f;
+                float offsetZ = m_RotationX / 20f;
+                m_Transposer.m_FollowOffset.y = 0.5f - offsetY;
+                m_Transposer.m_FollowOffset.z = -4f + Mathf.Abs(offsetZ);
+                targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
             }
 
-            // Lerp of character's view.
-            m_LerpedPosition = m_PositionLerper.LerpPosition(m_LerpedPosition, targetPosition);
+            // Lerp of character's pitch.
             m_LerpedRotation = m_RotationLerper.LerpRotation(m_LerpedRotation, targetRotation);
-
-            m_CamTransform.localPosition = m_LerpedPosition;
-            m_CamTransform.rotation = m_LerpedRotation; // rotaion is not local.
+            m_MainCamera.transform.localRotation = m_LerpedRotation;
 #else   // !OVR
             // Update character's pitch.
             Vector3 targetPosition = transform.position + new Vector3(0f, 1.3f, 0f);
@@ -374,4 +344,4 @@ namespace Unity.BossRoom.CameraUtils
         }
 #endif  // P56
     }
-    }
+}
