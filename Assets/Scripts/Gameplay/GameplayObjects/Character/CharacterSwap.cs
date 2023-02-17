@@ -30,10 +30,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             public AnimatorOverrideController animatorOverrides; // references a separate stand-alone object in the project
             private List<Renderer> m_CachedRenderers;
 #if P56
-            public UnityEngine.Avatar avatarOverrides; // reference an humanoid avatar
-            public GameObject headGO;
-            public GameObject eyesGO;
+            public UnityEngine.Avatar avatarOverrides; // reference to humanoid avatar
             public GameObject rightHandIK;
+            public Vector3 rightHandIKRotationCorrection;
 #endif  // P56
 
             public void SetFullActive(bool isActive)
@@ -84,41 +83,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         [SerializeField]
         CharacterModelSet m_CharacterModel;
-
-#if P56
-        public GameObject HeadGO
-        {
-            get
-            {
-                if (m_CharacterModel.headGO != null)
-                {
-                    // Added characters
-                    return m_CharacterModel.headGO;
-                }
-                else
-                {
-                    // Original characters
-                    return m_CharacterModel.head.transform.parent.parent.gameObject;
-                }
-            }
-        }
-
-        public GameObject EyesGO
-        {
-            get
-            {
-                return m_CharacterModel.eyesGO;
-            }
-        }
-
-        public GameObject RightHandIK
-        {
-            get
-            {
-                return m_CharacterModel.rightHandIK;
-            }
-        }
-#endif  // P56
 
         public CharacterModelSet CharacterModel => m_CharacterModel;
 
@@ -194,6 +158,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
                     if (m_CharacterModel.avatarOverrides)
                     {
+                        // For using Humanoid animation.
                         m_Animator.avatar = m_CharacterModel.avatarOverrides;
                     }
 #endif  // P56

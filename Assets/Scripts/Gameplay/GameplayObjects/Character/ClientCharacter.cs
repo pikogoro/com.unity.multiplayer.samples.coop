@@ -79,14 +79,17 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         // IK
         float m_RotationX = 0f;
 
+        GameObject m_Eyes = null;
+        GameObject m_GearRightHand = null;
         GameObject m_RightHandIK = null;
-        public GameObject RightHandIK
-        {
-            set { m_RightHandIK = value; }
-        }
-        Transform m_RightHandIKRoot = null;
+        Vector3 m_RightHandIKRotationCorrection;
+
+        // Two Bone IK Constraint
+        TwoBoneIKConstraint m_RightHandIKConstraint;
+
+        //Transform m_RightHandIKRoot = null;
         Transform m_RightHandIKTarget = null;
-        Transform m_RightHandIKPivot = null;
+        //Transform m_RightHandIKPivot = null;
         Transform m_RightHandIKMuzzle = null;
 #endif  // P56
 
@@ -163,13 +166,24 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_ServerCharacter.RotationX.OnValueChanged += OnRotationXChanged;
 
                 // IK
-                m_RightHandIK = GetComponentInChildren<CharacterSwap>().RightHandIK;
+                m_Eyes = GetComponentInChildren<CharacterSwap>().CharacterModel.eyes;
+                m_GearRightHand = GetComponentInChildren<CharacterSwap>().CharacterModel.gearRightHand;
+                m_RightHandIK = GetComponentInChildren<CharacterSwap>().CharacterModel.rightHandIK;
+                m_RightHandIKRotationCorrection = GetComponentInChildren<CharacterSwap>().CharacterModel.rightHandIKRotationCorrection;
+
                 if (m_RightHandIK != null)
                 {
-                    m_RightHandIKRoot = m_RightHandIK.transform.Find("RightHandIK_root");
-                    m_RightHandIKTarget = m_RightHandIK.transform.Find("RightHandIK_target");
-                    m_RightHandIKPivot = m_RightHandIKTarget.Find("RightHandIK_pivot");
-                    m_RightHandIKMuzzle = m_RightHandIKPivot.Find("RightHandIK_muzzle");
+                    m_RightHandIKConstraint = m_RightHandIK.GetComponent<TwoBoneIKConstraint>();
+                    if (m_RightHandIKConstraint != null)
+                    {
+                        TwoBoneIKConstraintData data = m_RightHandIKConstraint.data;
+                        m_RightHandIKTarget = data.target;
+                    }
+                }
+
+                if (m_GearRightHand != null)
+                {
+                    m_RightHandIKMuzzle = m_GearRightHand.transform.Find("muzzle");
                 }
             }
 #endif  // P56
@@ -353,12 +367,12 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
 
 #if P56
-            // IK
-            if (m_RightHandIKTarget != null)
+            if (m_RightHandIKTarget)
             {
-                m_RightHandIKTarget.localPosition = Quaternion.Euler(-m_RotationX, 0f, 0f) * new Vector3(0f, 0f, 1f) + m_RightHandIKRoot.localPosition;
-                m_RightHandIKTarget.localRotation = Quaternion.Euler(90f, 90f, 0f);
-                m_RightHandIKPivot.localRotation = Quaternion.Euler(0f, -m_RotationX, 0f);
+                // Rotate direction of eyes.
+                m_Eyes.transform.localRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
+                m_RightHandIKTarget.position = m_GearRightHand.transform.position;
+                m_RightHandIKTarget.localRotation = Quaternion.Euler(m_RightHandIKRotationCorrection);    // Why need rotation? I don't know...
             }
 #endif  // P56
 

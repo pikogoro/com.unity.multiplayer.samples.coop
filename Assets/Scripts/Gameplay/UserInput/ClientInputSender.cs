@@ -262,9 +262,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
         void Start()
         {
             m_CameraController = GetComponentInChildren<CameraController>();
-            m_CameraController.HeadGO = GetComponentInChildren<CharacterSwap>().HeadGO;
-            m_CameraController.EyesGO = GetComponentInChildren<CharacterSwap>().EyesGO;
-            m_CameraController.RightHandIK = GetComponentInChildren<CharacterSwap>().RightHandIK;
+            CharacterSwap characterSwap = GetComponentInChildren<CharacterSwap>();
+            m_CameraController.Head = characterSwap.CharacterModel.head;
+            m_CameraController.Eyes = characterSwap.CharacterModel.eyes;
+            m_CameraController.GearRightHand = characterSwap.CharacterModel.gearRightHand;
+            m_CameraController.RightHandIK = characterSwap.CharacterModel.rightHandIK;
+            m_CameraController.RightHandIKRotationCorrection = characterSwap.CharacterModel.rightHandIKRotationCorrection;
 
             GameObject joystick = GameObject.Find("Joystick");
 #if UNITY_STANDALONE || OVR
@@ -384,13 +387,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                 // Calculate rotation X.
                 float rotationX = m_LastRotationX + pitch;
-                if (rotationX > 90f)
+                if (rotationX >= 90f)
                 {
-                    rotationX = 90f;
+                    rotationX = 89f;
                 }
-                else if (rotationX < -90)
+                else if (rotationX <= -90)
                 {
-                    rotationX = -90f;
+                    rotationX = -89f;
                 }
 
                 // Calculate otation Y.
