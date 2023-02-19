@@ -136,6 +136,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
         bool m_JumpStateChanged = false;
         const float k_GroundRaycastDistance = 100f;
 
+        // For dush
+        float m_DushPower = 1f;
+
+        // For guard
+        bool m_IsGuard = false;
+
         // For rotation
         float m_SensitivityMouseX = 5f;
         float m_SensitivityMouseY = 5f;
@@ -859,6 +865,16 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 m_JumpStateChanged = true;
             }
 
+            // For dush
+            if (UnityEngine.Input.GetKeyDown(KeyCode.LeftShift))
+            {
+                m_DushPower = 1f;
+            }
+            else if (UnityEngine.Input.GetKeyUp(KeyCode.LeftShift))
+            {
+                m_DushPower = 0f;
+            }
+
             // Change mouse cursor lock state. 
             if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
             {
@@ -965,6 +981,16 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     {
                         Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
                     }
+                }
+
+                // Handle mouse click event on left mouse button.
+                if (UnityEngine.Input.GetMouseButtonDown(3) && m_CurrentSkillInput == null)
+                {
+                    m_IsGuard = true;
+                }
+                else if (UnityEngine.Input.GetMouseButtonUp(3))
+                {
+                    m_IsGuard = false;
                 }
             }
 

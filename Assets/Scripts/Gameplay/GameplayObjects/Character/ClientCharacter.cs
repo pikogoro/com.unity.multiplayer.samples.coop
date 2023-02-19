@@ -80,17 +80,32 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         float m_RotationX = 0f;
 
         GameObject m_Eyes = null;
+
+        GameObject m_HandLeft = null;
+        GameObject m_GearLeftHand = null;
+        GameObject m_LeftHandIK = null;
+        Vector3 m_LeftHandIKRotationCorrection;
+        float m_LeftHandIKWeight = 0f;
+        Vector3 m_GearLeftHandPosition;
+
+        GameObject m_HandRight = null;
         GameObject m_GearRightHand = null;
         GameObject m_RightHandIK = null;
         Vector3 m_RightHandIKRotationCorrection;
+        float m_RightHandIKWeight = 0f;
+        Vector3 m_GearRightHandPosition;
 
         // Two Bone IK Constraint
+        TwoBoneIKConstraint m_LeftHandIKConstraint;
         TwoBoneIKConstraint m_RightHandIKConstraint;
 
-        //Transform m_RightHandIKRoot = null;
+        Transform m_LeftHandIKTarget = null;
+        Transform m_LeftHandIKMuzzle = null;
+        Transform m_LeftHandGearPosition = null;
+
         Transform m_RightHandIKTarget = null;
-        //Transform m_RightHandIKPivot = null;
         Transform m_RightHandIKMuzzle = null;
+        Transform m_RightHandGearPosition = null;
 #endif  // P56
 
         /// <summary>
@@ -161,15 +176,37 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
             m_ServerCharacter.MovementDirection.OnValueChanged += OnMovementDirectionChanged;
 
-            if (!m_ServerCharacter.IsOwner)
+            if (!m_ServerCharacter.IsNpc)
             {
                 m_ServerCharacter.RotationX.OnValueChanged += OnRotationXChanged;
 
                 // IK
                 m_Eyes = GetComponentInChildren<CharacterSwap>().CharacterModel.eyes;
+
+                m_HandLeft = GetComponentInChildren<CharacterSwap>().CharacterModel.handLeft;
+                m_GearLeftHand = GetComponentInChildren<CharacterSwap>().CharacterModel.gearLeftHand;
+                m_LeftHandIK = GetComponentInChildren<CharacterSwap>().CharacterModel.leftHandIK;
+                m_LeftHandIKRotationCorrection = GetComponentInChildren<CharacterSwap>().CharacterModel.leftHandIKRotationCorrection;
+                m_LeftHandGearPosition = m_Eyes.transform.Find("leftHandGearPosition");
+
+                m_HandRight = GetComponentInChildren<CharacterSwap>().CharacterModel.handRight;
                 m_GearRightHand = GetComponentInChildren<CharacterSwap>().CharacterModel.gearRightHand;
                 m_RightHandIK = GetComponentInChildren<CharacterSwap>().CharacterModel.rightHandIK;
                 m_RightHandIKRotationCorrection = GetComponentInChildren<CharacterSwap>().CharacterModel.rightHandIKRotationCorrection;
+                m_RightHandGearPosition = m_Eyes.transform.Find("rightHandGearPosition");
+
+                m_GearLeftHandPosition = m_GearLeftHand.transform.localPosition;
+                m_GearRightHandPosition = m_GearRightHand.transform.localPosition;
+
+                if (m_LeftHandIK != null)
+                {
+                    m_LeftHandIKConstraint = m_LeftHandIK.GetComponent<TwoBoneIKConstraint>();
+                    if (m_LeftHandIKConstraint != null)
+                    {
+                        TwoBoneIKConstraintData data = m_LeftHandIKConstraint.data;
+                        m_LeftHandIKTarget = data.target;
+                    }
+                }
 
                 if (m_RightHandIK != null)
                 {
@@ -179,6 +216,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                         TwoBoneIKConstraintData data = m_RightHandIKConstraint.data;
                         m_RightHandIKTarget = data.target;
                     }
+                }
+
+                if (m_GearLeftHand != null)
+                {
+                    m_LeftHandIKMuzzle = m_GearLeftHand.transform.Find("muzzle");
                 }
 
                 if (m_GearRightHand != null)
@@ -239,6 +281,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     rigBuilder.enabled = true;
                     rigBuilder.Build();
                 }
+
+                // Start IK
+                DisableIK(false);
 #endif  // !P56
             }
         }
@@ -367,13 +412,22 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
 
 #if P56
-            if (m_RightHandIKTarget)
+            if (m_RightHandIKTarget != null && m_RightHandIKTarget != null)
             {
-                // Rotate direction of eyes.
-                m_Eyes.transform.localRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
-                m_RightHandIKTarget.position = m_GearRightHand.transform.position;
-                m_RightHandIKTarget.localRotation = Quaternion.Euler(m_RightHandIKRotationCorrection);    // Why need rotation? I don't know...
-            }
+                // Change IK weight.
+                m_LeftHandIKConstraint.weight = m_LeftHandIKWeight;
+                m_RightHandIKConstraint.weight = m_RightHandIKWeight;
+
+                // Rotate direction of eyes if player character is not local player.
+                if (!m_ServerCharacter.IsOwner)
+                {
+                    m_Eyes.transform.localRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
+                    m_LeftHandIKTarget.position = m_GearLeftHand.transform.position;
+                    m_LeftHandIKTarget.localRotation = Quaternion.Euler(m_LeftHandIKRotationCorrection);    // Why need rotation? I don't know...
+                    m_RightHandIKTarget.position = m_GearRightHand.transform.position;
+                    m_RightHandIKTarget.localRotation = Quaternion.Euler(m_RightHandIKRotationCorrection);    // Why need rotation? I don't know...
+                }
+            }            
 #endif  // P56
 
             if (m_ClientVisualsAnimator)
@@ -415,5 +469,29 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
             return false;
         }
+#if P56
+        public void DisableIK(bool disabled)
+        {
+            if (m_ServerCharacter.NetLifeState.LifeState.Value != LifeState.Alive)
+            {
+                return;
+            }
+
+            if (disabled && m_RightHandIKWeight == 1f)
+            {
+                m_RightHandIKWeight = 0f;
+                m_GearRightHand.transform.SetParent(m_HandRight.transform);
+                m_GearRightHand.transform.localPosition = Vector3.zero;
+                m_GearRightHand.transform.localRotation = Quaternion.Euler(m_RightHandIKRotationCorrection);    // Why need rotation? I don't know...
+            }
+            else if (!disabled && m_RightHandIKWeight == 0f)
+            {
+                m_RightHandIKWeight = 1f;
+                m_GearRightHand.transform.SetParent(m_RightHandGearPosition);
+                m_GearRightHand.transform.localPosition = m_GearRightHandPosition;
+                m_GearRightHand.transform.localRotation = Quaternion.identity;
+            }
+        }
+#endif  // P56
     }
 }

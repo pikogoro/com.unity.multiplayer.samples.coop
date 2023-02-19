@@ -60,6 +60,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.AnimationCallbacks
 #if P56
             [Header("Particle System")]
             public ParticleSystem m_ParticleSystem;
+
+            [Header("IK")]
+            public bool m_ChangeIKState;
+            public bool m_DisableIKOnEnter;
+            public bool m_DisableIKOnExit;
 #endif  // P56
         }
         [SerializeField]
@@ -124,6 +129,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.AnimationCallbacks
                     if (info.m_ParticleSystem)
                     {
                         info.m_ParticleSystem.Play();
+                    }
+
+                    if (info.m_ChangeIKState)
+                    {
+                        m_ClientCharacter.DisableIK(info.m_DisableIKOnEnter);
                     }
 #endif  // P56
                 }
@@ -226,6 +236,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.AnimationCallbacks
                     if (info.m_ParticleSystem)
                     {
                         info.m_ParticleSystem.Stop();
+                    }
+
+                    if (info.m_ChangeIKState)
+                    {
+                        m_ClientCharacter.DisableIK(info.m_DisableIKOnExit);
                     }
                 }
             }

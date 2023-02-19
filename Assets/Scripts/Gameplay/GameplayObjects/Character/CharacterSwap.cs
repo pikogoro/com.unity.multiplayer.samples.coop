@@ -31,6 +31,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             private List<Renderer> m_CachedRenderers;
 #if P56
             public UnityEngine.Avatar avatarOverrides; // reference to humanoid avatar
+            public GameObject leftHandIK;
+            public Vector3 leftHandIKRotationCorrection;
             public GameObject rightHandIK;
             public Vector3 rightHandIKRotationCorrection;
 #endif  // P56
