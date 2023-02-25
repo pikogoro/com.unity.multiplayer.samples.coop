@@ -35,6 +35,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             public Vector3 leftHandIKRotationCorrection;
             public GameObject rightHandIK;
             public Vector3 rightHandIKRotationCorrection;
+
+            // Gear
+            public GameObject[] gears;
 #endif  // P56
 
             public void SetFullActive(bool isActive)

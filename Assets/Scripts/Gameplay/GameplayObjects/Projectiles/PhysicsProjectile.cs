@@ -255,7 +255,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
             // Change collision check to use sphere cast because projectile pass target if it too fast.
 
             float distance = m_ProjectileInfo.Speed_m_s * Time.fixedDeltaTime;
-            var numHits = Physics.SphereCastNonAlloc(transform.position, m_OurCollider.radius, transform.forward, k_CachedHit, distance, m_CollisionMask);
+            //var numHits = Physics.SphereCastNonAlloc(transform.position, m_OurCollider.radius, transform.forward, k_CachedHit, distance, m_CollisionMask);
+            var numHits = Physics.RaycastNonAlloc(transform.position, transform.forward, k_CachedHit, distance, m_CollisionMask);
             if (numHits > 1)
             {
                 // sort hits by distance
@@ -282,6 +283,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 //if (k_CachedHit[i].collider.gameObject.layer == m_NpcLayer && !m_HitTargets.Contains(k_CachedHit[i].collider.gameObject))
                 if (!m_HitTargets.Contains(k_CachedHit[i].collider.gameObject))
                 {
+                    Debug.Log("k_CachedHit[i].point " + k_CachedHit[i].point);
+
                     m_HitTargets.Add(k_CachedHit[i].collider.gameObject);
 
                     if (m_HitTargets.Count >= m_ProjectileInfo.MaxVictims)

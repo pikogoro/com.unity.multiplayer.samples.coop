@@ -14,6 +14,21 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         Mage,
         Rogue,
 
+#if P56
+        Pako,
+        /*
+        // custom player characters
+        Custom1,
+        Custom2,
+        Custom3,
+        Custom4,
+        Custom5,
+        Custom6,
+        Custom7,
+        Custom8,
+        */
+#endif  // P56
+
         //monsters
         Imp,
         ImpBoss,

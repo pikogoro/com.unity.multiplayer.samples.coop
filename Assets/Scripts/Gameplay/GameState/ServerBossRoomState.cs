@@ -218,6 +218,9 @@ namespace Unity.BossRoom.Gameplay.GameState
                 case CharacterTypeEnum.Archer:
                 case CharacterTypeEnum.Mage:
                 case CharacterTypeEnum.Rogue:
+#if P56
+                case CharacterTypeEnum.Pako:
+#endif  // P56
                     // Every time a player's life state changes to fainted we check to see if game is over
                     if (message.NewLifeState == LifeState.Fainted)
                     {

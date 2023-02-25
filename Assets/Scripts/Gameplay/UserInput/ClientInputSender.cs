@@ -120,6 +120,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
         PhysicsWrapper m_PhysicsWrapper;
 
 #if P56
+        // For movement
         Joystick m_Joystick;
         bool m_IsMouseDown = false;
         Vector3 m_MouseDownPosition = Vector3.zero;
@@ -136,8 +137,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
         bool m_JumpStateChanged = false;
         const float k_GroundRaycastDistance = 100f;
 
-        // For dush
-        float m_DushPower = 1f;
+        // For boost
+        bool m_BoostChange = false;
 
         // For guard
         bool m_IsGuard = false;
@@ -159,6 +160,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
         int m_SelectedAction = 1;
         const int k_MinAction = 1;
         const int k_MaxAction = 7;
+        int m_CurrentGear = 1;
+
 
         PositionUtil m_PositionUtil;
 #if OVR
@@ -591,6 +594,22 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                         movement.RotationX = m_LastRotationX;
 
+                        // For boost
+                        if (m_BoostChange)
+                        {
+                            movement.BoostChange = true;
+                        }
+
+                        // For gear
+                        if (m_CurrentGear != m_SelectedAction)
+                        {
+                            if (1 <= m_SelectedAction && m_SelectedAction <= 3)
+                            {
+                                m_CurrentGear = m_SelectedAction;
+                                movement.ChosedGear = m_CurrentGear;
+                            }
+                        }
+
                         // Set upward velocity and reset jump state.
                         movement.UpwardVelocity = m_UpwardVelocity;
 
@@ -767,7 +786,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     resultData.ShouldClose = false; //why? Because you could be lining up a shot, hoping to hit other people between you and your target. Moving you would be quite invasive.
                     return;
                 case ActionLogic.Melee:
+#if P56
+                    resultData.Direction = Vector3.zero;    // character's forward diraction
+#else   // P56
                     resultData.Direction = direction;
+#endif  // P56
                     return;
                 case ActionLogic.Target:
                     resultData.ShouldClose = false;
@@ -865,14 +888,14 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 m_JumpStateChanged = true;
             }
 
-            // For dush
+            // For boost
             if (UnityEngine.Input.GetKeyDown(KeyCode.LeftShift))
             {
-                m_DushPower = 1f;
+                m_BoostChange = true;
             }
             else if (UnityEngine.Input.GetKeyUp(KeyCode.LeftShift))
             {
-                m_DushPower = 0f;
+                m_BoostChange = false;
             }
 
             // Change mouse cursor lock state. 

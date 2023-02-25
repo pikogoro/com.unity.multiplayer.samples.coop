@@ -73,7 +73,6 @@ namespace Unity.BossRoom.Gameplay.Actions
                 if (foe != null)
                 {
                     foe.ReceiveHP(clientCharacter, -Config.Amount);
-
 #if P56
                     // Knockback
                     ServerCharacter targetCharacter = foe.transform.GetComponent<ServerCharacter>();

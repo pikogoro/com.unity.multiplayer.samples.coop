@@ -49,6 +49,10 @@ namespace Unity.BossRoom.Gameplay.Configuration
         public float SpeedHasted = 1.5f;
         [Tooltip("The animator Speed value when character is moving at a slower walking pace")]
         public float SpeedWalking = 0.5f;
+#if P56
+        [Tooltip("The animator Speed value when character is boosted")]
+        public float SpeedBoosted = 2f;
+#endif  // P56
 
         [Header("Associated Resources")]
         [Tooltip("Prefab for the Target Reticule used by this Character")]

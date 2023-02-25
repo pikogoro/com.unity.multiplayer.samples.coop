@@ -106,6 +106,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         Transform m_RightHandIKTarget = null;
         Transform m_RightHandIKMuzzle = null;
         Transform m_RightHandGearPosition = null;
+
 #endif  // P56
 
         /// <summary>
@@ -175,14 +176,16 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
 #if P56
             m_ServerCharacter.MovementDirection.OnValueChanged += OnMovementDirectionChanged;
+            m_ServerCharacter.CurrentGear.OnValueChanged += OnCurrentGearChanged;
 
+            /*
             if (!m_ServerCharacter.IsNpc)
             {
                 m_ServerCharacter.RotationX.OnValueChanged += OnRotationXChanged;
 
                 // IK
                 m_Eyes = GetComponentInChildren<CharacterSwap>().CharacterModel.eyes;
-
+                
                 m_HandLeft = GetComponentInChildren<CharacterSwap>().CharacterModel.handLeft;
                 m_GearLeftHand = GetComponentInChildren<CharacterSwap>().CharacterModel.gearLeftHand;
                 m_LeftHandIK = GetComponentInChildren<CharacterSwap>().CharacterModel.leftHandIK;
@@ -228,6 +231,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     m_RightHandIKMuzzle = m_GearRightHand.transform.Find("muzzle");
                 }
             }
+            */
 #endif  // P56
 
             // sync our visualization position & rotation to the most up to date version received from server
@@ -271,6 +275,55 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 }
 
 #if P56
+                m_ServerCharacter.RotationX.OnValueChanged += OnRotationXChanged;
+
+                m_Eyes = m_CharacterSwapper.CharacterModel.eyes;
+
+                m_HandLeft = m_CharacterSwapper.CharacterModel.handLeft;
+                m_GearLeftHand = m_CharacterSwapper.CharacterModel.gearLeftHand;
+                m_LeftHandIK = m_CharacterSwapper.CharacterModel.leftHandIK;
+                m_LeftHandIKRotationCorrection = m_CharacterSwapper.CharacterModel.leftHandIKRotationCorrection;
+                m_LeftHandGearPosition = m_Eyes.transform.Find("leftHandGearPosition");
+
+                m_HandRight = m_CharacterSwapper.CharacterModel.handRight;
+                m_GearRightHand = m_CharacterSwapper.CharacterModel.gearRightHand;
+                m_RightHandIK = m_CharacterSwapper.CharacterModel.rightHandIK;
+                m_RightHandIKRotationCorrection = m_CharacterSwapper.CharacterModel.rightHandIKRotationCorrection;
+                m_RightHandGearPosition = m_Eyes.transform.Find("rightHandGearPosition");
+
+                m_GearLeftHandPosition = m_GearLeftHand.transform.localPosition;
+                m_GearRightHandPosition = m_GearRightHand.transform.localPosition;
+
+                if (m_LeftHandIK != null)
+                {
+                    m_LeftHandIKConstraint = m_LeftHandIK.GetComponent<TwoBoneIKConstraint>();
+                    if (m_LeftHandIKConstraint != null)
+                    {
+                        TwoBoneIKConstraintData data = m_LeftHandIKConstraint.data;
+                        m_LeftHandIKTarget = data.target;
+                    }
+                }
+
+                if (m_RightHandIK != null)
+                {
+                    m_RightHandIKConstraint = m_RightHandIK.GetComponent<TwoBoneIKConstraint>();
+                    if (m_RightHandIKConstraint != null)
+                    {
+                        TwoBoneIKConstraintData data = m_RightHandIKConstraint.data;
+                        m_RightHandIKTarget = data.target;
+                    }
+                }
+
+                if (m_GearLeftHand != null)
+                {
+                    m_LeftHandIKMuzzle = m_GearLeftHand.transform.Find("muzzle");
+                }
+
+                if (m_GearRightHand != null)
+                {
+                    m_RightHandIKMuzzle = m_GearRightHand.transform.Find("muzzle");
+                }
+
                 // Add rig to rig builder and rebuild.
                 Rig rig = GetComponentInChildren<Rig>();
                 if (rig != null)
@@ -371,6 +424,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     return m_VisualizationConfiguration.SpeedHasted;
                 case MovementStatus.Walking:
                     return m_VisualizationConfiguration.SpeedWalking;
+#if P56
+                case MovementStatus.Boosted:
+                    return m_VisualizationConfiguration.SpeedBoosted;
+#endif  //P56
                 default:
                     throw new Exception($"Unknown MovementStatus {movementStatus}");
             }
@@ -390,6 +447,26 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         void OnRotationXChanged(float previousValue, float newValue)
         {
             m_RotationX = newValue;
+        }
+
+        void OnCurrentGearChanged(int previousValue, int newValue)
+        {
+            GameObject[] gears = CharacterSwap.CharacterModel.gears;
+            GameObject chosedGear = null;
+
+            for (int i = 0; i < gears.Length; i++)
+            {
+                // Disable all gears.
+                gears[i].SetActive(false);
+
+                if (i + 1 == newValue)
+                {
+                    chosedGear = gears[i];
+                }
+            }
+
+            // Enable only chosed gear.
+            chosedGear.SetActive(true);
         }
 #endif  // P56
 
@@ -439,6 +516,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 // set Animator variables here
                 OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedFBVariableID, m_CurrentMovementDirection.z * m_CurrentSpeed);
                 OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedLRVariableID, m_CurrentMovementDirection.x * m_CurrentSpeed);
+
+                if (m_CurrentSpeed > 0f)
+                {
+                    Debug.Log("m_CurrentSpeed " + m_CurrentSpeed);
+                }
 #endif  // !P56
             }
 

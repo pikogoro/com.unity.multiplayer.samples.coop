@@ -51,6 +51,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
         // Indicates the character's movement direction (normalized).
         public NetworkVariable<Vector3> MovementDirection { get; } = new NetworkVariable<Vector3>();
+
+        // Indicates pattern of character's gear.
+        public NetworkVariable<int> CurrentGear { get; set; } = new NetworkVariable<int>();
 #endif  // P56
 
         public NetworkVariable<ulong> HeldNetworkObject { get; } = new NetworkVariable<ulong>();
