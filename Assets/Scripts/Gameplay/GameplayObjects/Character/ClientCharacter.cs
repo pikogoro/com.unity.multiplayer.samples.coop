@@ -6,9 +6,6 @@ using Unity.BossRoom.Gameplay.Actions;
 using Unity.BossRoom.Utils;
 using Unity.Netcode;
 using UnityEngine;
-#if P56
-using UnityEngine.Animations.Rigging;
-#endif  // P56
 
 namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 {
@@ -76,37 +73,27 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
         Vector3 m_CurrentMovementDirection;
 
-        // IK
         float m_RotationX = 0f;
+        public float RotationX
+        {
+            set { m_RotationX = value; }
+        }
 
-        GameObject m_Eyes = null;
+        ClientCharacterIKManager m_IKManager;
 
-        GameObject m_HandLeft = null;
-        GameObject m_GearLeftHand = null;
-        GameObject m_LeftHandIK = null;
-        Vector3 m_LeftHandIKRotationCorrection;
-        float m_LeftHandIKWeight = 0f;
-        Vector3 m_GearLeftHandPosition;
+        Transform m_Muzzle = null;
+        public Vector3 MuzzlePosition
+        {
+            get { return m_Muzzle.position; }  // world position
+        }
+        public Vector3 MuzzleLocalPosition
+        {
+            get { return transform.worldToLocalMatrix.MultiplyPoint(m_Muzzle.position); } // world position -> local position
+        }
 
-        GameObject m_HandRight = null;
-        GameObject m_GearRightHand = null;
-        GameObject m_RightHandIK = null;
-        Vector3 m_RightHandIKRotationCorrection;
-        float m_RightHandIKWeight = 0f;
-        Vector3 m_GearRightHandPosition;
-
-        // Two Bone IK Constraint
-        TwoBoneIKConstraint m_LeftHandIKConstraint;
-        TwoBoneIKConstraint m_RightHandIKConstraint;
-
-        Transform m_LeftHandIKTarget = null;
-        Transform m_LeftHandIKMuzzle = null;
-        Transform m_LeftHandGearPosition = null;
-
-        Transform m_RightHandIKTarget = null;
-        Transform m_RightHandIKMuzzle = null;
-        Transform m_RightHandGearPosition = null;
-
+        // For movement animation spped lerp
+        PositionLerper m_MovAnimSpeedLerper;
+        Vector3 m_LerpedMovAnimSpeed;
 #endif  // P56
 
         /// <summary>
@@ -177,61 +164,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
             m_ServerCharacter.MovementDirection.OnValueChanged += OnMovementDirectionChanged;
             m_ServerCharacter.CurrentGear.OnValueChanged += OnCurrentGearChanged;
-
-            /*
-            if (!m_ServerCharacter.IsNpc)
-            {
-                m_ServerCharacter.RotationX.OnValueChanged += OnRotationXChanged;
-
-                // IK
-                m_Eyes = GetComponentInChildren<CharacterSwap>().CharacterModel.eyes;
-                
-                m_HandLeft = GetComponentInChildren<CharacterSwap>().CharacterModel.handLeft;
-                m_GearLeftHand = GetComponentInChildren<CharacterSwap>().CharacterModel.gearLeftHand;
-                m_LeftHandIK = GetComponentInChildren<CharacterSwap>().CharacterModel.leftHandIK;
-                m_LeftHandIKRotationCorrection = GetComponentInChildren<CharacterSwap>().CharacterModel.leftHandIKRotationCorrection;
-                m_LeftHandGearPosition = m_Eyes.transform.Find("leftHandGearPosition");
-
-                m_HandRight = GetComponentInChildren<CharacterSwap>().CharacterModel.handRight;
-                m_GearRightHand = GetComponentInChildren<CharacterSwap>().CharacterModel.gearRightHand;
-                m_RightHandIK = GetComponentInChildren<CharacterSwap>().CharacterModel.rightHandIK;
-                m_RightHandIKRotationCorrection = GetComponentInChildren<CharacterSwap>().CharacterModel.rightHandIKRotationCorrection;
-                m_RightHandGearPosition = m_Eyes.transform.Find("rightHandGearPosition");
-
-                m_GearLeftHandPosition = m_GearLeftHand.transform.localPosition;
-                m_GearRightHandPosition = m_GearRightHand.transform.localPosition;
-
-                if (m_LeftHandIK != null)
-                {
-                    m_LeftHandIKConstraint = m_LeftHandIK.GetComponent<TwoBoneIKConstraint>();
-                    if (m_LeftHandIKConstraint != null)
-                    {
-                        TwoBoneIKConstraintData data = m_LeftHandIKConstraint.data;
-                        m_LeftHandIKTarget = data.target;
-                    }
-                }
-
-                if (m_RightHandIK != null)
-                {
-                    m_RightHandIKConstraint = m_RightHandIK.GetComponent<TwoBoneIKConstraint>();
-                    if (m_RightHandIKConstraint != null)
-                    {
-                        TwoBoneIKConstraintData data = m_RightHandIKConstraint.data;
-                        m_RightHandIKTarget = data.target;
-                    }
-                }
-
-                if (m_GearLeftHand != null)
-                {
-                    m_LeftHandIKMuzzle = m_GearLeftHand.transform.Find("muzzle");
-                }
-
-                if (m_GearRightHand != null)
-                {
-                    m_RightHandIKMuzzle = m_GearRightHand.transform.Find("muzzle");
-                }
-            }
-            */
 #endif  // P56
 
             // sync our visualization position & rotation to the most up to date version received from server
@@ -242,6 +174,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             // similarly, initialize start position and rotation for smooth lerping purposes
             m_PositionLerper = new PositionLerper(m_PhysicsWrapper.Transform.position, k_LerpTime);
             m_RotationLerper = new RotationLerper(m_PhysicsWrapper.Transform.rotation, k_LerpTime);
+
+#if P56
+            // Setup movement animation spped lerper
+            m_MovAnimSpeedLerper = new PositionLerper(Vector3.zero, k_LerpTime);
+#endif  // P56
 
             if (!m_ServerCharacter.IsNpc)
             {
@@ -271,72 +208,21 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                             inputSender.ActionInputEvent += OnActionInput;
                         }
                         inputSender.ClientMoveEvent += OnMoveInput;
+#if P56
+                        inputSender.ClientCharacter = this;
+#endif  // P56
                     }
                 }
 
 #if P56
                 m_ServerCharacter.RotationX.OnValueChanged += OnRotationXChanged;
 
-                m_Eyes = m_CharacterSwapper.CharacterModel.eyes;
-
-                m_HandLeft = m_CharacterSwapper.CharacterModel.handLeft;
-                m_GearLeftHand = m_CharacterSwapper.CharacterModel.gearLeftHand;
-                m_LeftHandIK = m_CharacterSwapper.CharacterModel.leftHandIK;
-                m_LeftHandIKRotationCorrection = m_CharacterSwapper.CharacterModel.leftHandIKRotationCorrection;
-                m_LeftHandGearPosition = m_Eyes.transform.Find("leftHandGearPosition");
-
-                m_HandRight = m_CharacterSwapper.CharacterModel.handRight;
-                m_GearRightHand = m_CharacterSwapper.CharacterModel.gearRightHand;
-                m_RightHandIK = m_CharacterSwapper.CharacterModel.rightHandIK;
-                m_RightHandIKRotationCorrection = m_CharacterSwapper.CharacterModel.rightHandIKRotationCorrection;
-                m_RightHandGearPosition = m_Eyes.transform.Find("rightHandGearPosition");
-
-                m_GearLeftHandPosition = m_GearLeftHand.transform.localPosition;
-                m_GearRightHandPosition = m_GearRightHand.transform.localPosition;
-
-                if (m_LeftHandIK != null)
-                {
-                    m_LeftHandIKConstraint = m_LeftHandIK.GetComponent<TwoBoneIKConstraint>();
-                    if (m_LeftHandIKConstraint != null)
-                    {
-                        TwoBoneIKConstraintData data = m_LeftHandIKConstraint.data;
-                        m_LeftHandIKTarget = data.target;
-                    }
-                }
-
-                if (m_RightHandIK != null)
-                {
-                    m_RightHandIKConstraint = m_RightHandIK.GetComponent<TwoBoneIKConstraint>();
-                    if (m_RightHandIKConstraint != null)
-                    {
-                        TwoBoneIKConstraintData data = m_RightHandIKConstraint.data;
-                        m_RightHandIKTarget = data.target;
-                    }
-                }
-
-                if (m_GearLeftHand != null)
-                {
-                    m_LeftHandIKMuzzle = m_GearLeftHand.transform.Find("muzzle");
-                }
-
-                if (m_GearRightHand != null)
-                {
-                    m_RightHandIKMuzzle = m_GearRightHand.transform.Find("muzzle");
-                }
-
-                // Add rig to rig builder and rebuild.
-                Rig rig = GetComponentInChildren<Rig>();
-                if (rig != null)
-                {
-                    RigBuilder rigBuilder = GetComponent<RigBuilder>();
-                    rigBuilder.layers.Clear();
-                    rigBuilder.layers.Add(new RigLayer(rig));
-                    rigBuilder.enabled = true;
-                    rigBuilder.Build();
-                }
-
-                // Start IK
-                DisableIK(false);
+                // Setup IK manager of client character
+                m_IKManager = new ClientCharacterIKManager();
+                m_IKManager.Initialize(m_CharacterSwapper, transform);
+                m_IKManager.SetGear(m_CharacterSwapper.CharacterModel.gears[0]);
+                m_Muzzle = m_IKManager.GearMuzzle;
+                EnableIK();
 #endif  // !P56
             }
         }
@@ -425,8 +311,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 case MovementStatus.Walking:
                     return m_VisualizationConfiguration.SpeedWalking;
 #if P56
-                case MovementStatus.Boosted:
-                    return m_VisualizationConfiguration.SpeedBoosted;
+                case MovementStatus.Dashing:
+                    return m_VisualizationConfiguration.SpeedDashing;
 #endif  //P56
                 default:
                     throw new Exception($"Unknown MovementStatus {movementStatus}");
@@ -446,7 +332,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         void OnRotationXChanged(float previousValue, float newValue)
         {
-            m_RotationX = newValue;
+            if (!m_ServerCharacter.IsOwner)
+            {
+                m_RotationX = newValue;
+            }
         }
 
         void OnCurrentGearChanged(int previousValue, int newValue)
@@ -467,6 +356,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
             // Enable only chosed gear.
             chosedGear.SetActive(true);
+
+            // Get muzzle transform from chosed gear.
+            m_IKManager.SetGear(chosedGear);
+            m_Muzzle = m_IKManager.GearMuzzle;
         }
 #endif  // P56
 
@@ -489,22 +382,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
 
 #if P56
-            if (m_RightHandIKTarget != null && m_RightHandIKTarget != null)
+            if (!m_ServerCharacter.IsNpc)
             {
-                // Change IK weight.
-                m_LeftHandIKConstraint.weight = m_LeftHandIKWeight;
-                m_RightHandIKConstraint.weight = m_RightHandIKWeight;
-
-                // Rotate direction of eyes if player character is not local player.
-                if (!m_ServerCharacter.IsOwner)
-                {
-                    m_Eyes.transform.localRotation = Quaternion.Euler(-m_RotationX, 0f, 0f);
-                    m_LeftHandIKTarget.position = m_GearLeftHand.transform.position;
-                    m_LeftHandIKTarget.localRotation = Quaternion.Euler(m_LeftHandIKRotationCorrection);    // Why need rotation? I don't know...
-                    m_RightHandIKTarget.position = m_GearRightHand.transform.position;
-                    m_RightHandIKTarget.localRotation = Quaternion.Euler(m_RightHandIKRotationCorrection);    // Why need rotation? I don't know...
-                }
-            }            
+                m_IKManager.OnUpdate(-m_RotationX);
+            }
 #endif  // P56
 
             if (m_ClientVisualsAnimator)
@@ -514,13 +395,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedVariableID, m_CurrentSpeed);
 #else   // !P56
                 // set Animator variables here
-                OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedFBVariableID, m_CurrentMovementDirection.z * m_CurrentSpeed);
-                OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedLRVariableID, m_CurrentMovementDirection.x * m_CurrentSpeed);
+                Vector3 movAnimSpeed = new Vector3(m_CurrentMovementDirection.x * m_CurrentSpeed, 0f, m_CurrentMovementDirection.z * m_CurrentSpeed);
+                m_LerpedMovAnimSpeed = m_MovAnimSpeedLerper.LerpPosition(m_LerpedMovAnimSpeed, movAnimSpeed);
 
-                if (m_CurrentSpeed > 0f)
-                {
-                    Debug.Log("m_CurrentSpeed " + m_CurrentSpeed);
-                }
+                OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedFBVariableID, m_LerpedMovAnimSpeed.z);
+                OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedLRVariableID, m_LerpedMovAnimSpeed.x);
 #endif  // !P56
             }
 
@@ -552,27 +431,26 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             return false;
         }
 #if P56
-        public void DisableIK(bool disabled)
+        public void EnableIK()
         {
             if (m_ServerCharacter.NetLifeState.LifeState.Value != LifeState.Alive)
             {
                 return;
             }
 
-            if (disabled && m_RightHandIKWeight == 1f)
+            m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+            m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+        }
+
+        public void DisableIK()
+        {
+            if (m_ServerCharacter.NetLifeState.LifeState.Value != LifeState.Alive)
             {
-                m_RightHandIKWeight = 0f;
-                m_GearRightHand.transform.SetParent(m_HandRight.transform);
-                m_GearRightHand.transform.localPosition = Vector3.zero;
-                m_GearRightHand.transform.localRotation = Quaternion.Euler(m_RightHandIKRotationCorrection);    // Why need rotation? I don't know...
+                return;
             }
-            else if (!disabled && m_RightHandIKWeight == 0f)
-            {
-                m_RightHandIKWeight = 1f;
-                m_GearRightHand.transform.SetParent(m_RightHandGearPosition);
-                m_GearRightHand.transform.localPosition = m_GearRightHandPosition;
-                m_GearRightHand.transform.localRotation = Quaternion.identity;
-            }
+
+            m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+            m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandRight);
         }
 #endif  // P56
     }

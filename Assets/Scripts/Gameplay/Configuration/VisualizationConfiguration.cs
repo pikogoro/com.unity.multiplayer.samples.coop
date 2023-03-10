@@ -50,8 +50,8 @@ namespace Unity.BossRoom.Gameplay.Configuration
         [Tooltip("The animator Speed value when character is moving at a slower walking pace")]
         public float SpeedWalking = 0.5f;
 #if P56
-        [Tooltip("The animator Speed value when character is boosted")]
-        public float SpeedBoosted = 2f;
+        [Tooltip("The animator Speed value when character is dashing")]
+        public float SpeedDashing = 2f;
 #endif  // P56
 
         [Header("Associated Resources")]

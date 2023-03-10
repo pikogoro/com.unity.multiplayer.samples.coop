@@ -16,8 +16,9 @@ namespace Unity.BossRoom.Gameplay.Actions
         public Quaternion Rotation;         // rotation of character's facing.
         public float RotationX;
         public float UpwardVelocity;        // upward velocity of character.
-        public bool BoostChange;            // boost change.
         public int ChosedGear;              // chosed gear to action.
+        public bool DoDash;                 // character dashes.
+        public bool DoDefend;               // character defends.
 
         public static Vector3 PositionNull
         {
@@ -37,8 +38,9 @@ namespace Unity.BossRoom.Gameplay.Actions
             HasRotation = 1 << 1,
             HasRotationX = 1 << 2,
             HasUpwardVelocity = 1 << 3,
-            HasBoostChange = 1 << 4,
-            HasChosedGear = 1 << 5
+            HasChosedGear = 1 << 4,
+            HasDoDash = 1 << 5,
+            HasDoDefend = 1 << 6
         }
 
         public static bool IsNull(Vector3 value)
@@ -70,13 +72,17 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 flags |= PackFlags.HasUpwardVelocity;
             }
-            if (BoostChange != false)
-            {
-                flags |= PackFlags.HasBoostChange;
-            }
             if (ChosedGear != 0)
             {
                 flags |= PackFlags.HasChosedGear;
+            }
+            if (DoDash != false)
+            {
+                flags |= PackFlags.HasDoDash;
+            }
+            if (DoDefend != false)
+            {
+                flags |= PackFlags.HasDoDefend;
             }
 
             return flags;
@@ -108,13 +114,17 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 serializer.SerializeValue(ref UpwardVelocity);
             }
-            if ((flags & PackFlags.HasBoostChange) != 0)
-            {
-                serializer.SerializeValue(ref BoostChange);
-            }
             if ((flags & PackFlags.HasChosedGear) != 0)
             {
                 serializer.SerializeValue(ref ChosedGear);
+            }
+            if ((flags & PackFlags.HasDoDash) != 0)
+            {
+                serializer.SerializeValue(ref DoDash);
+            }
+            if ((flags & PackFlags.HasDoDefend) != 0)
+            {
+                serializer.SerializeValue(ref DoDefend);
             }
         }
     }

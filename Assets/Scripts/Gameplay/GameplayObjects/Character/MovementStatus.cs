@@ -17,7 +17,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
         Hasted,       // character's movement is magically enhanced
         Walking,      // character should appear to be "walking" rather than normal running (e.g. for cut-scenes)
 #if P56
-        Boosted,      // character is boosted
+        Dashing,      // character is dashing
 #endif  // P56
     }
 }

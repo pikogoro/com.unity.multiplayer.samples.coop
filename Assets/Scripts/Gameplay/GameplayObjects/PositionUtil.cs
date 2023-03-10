@@ -5,14 +5,14 @@ using System;
 
 namespace Unity.BossRoom.Gameplay.GameplayObjects
 {
-    public class PositionUtil
+    public class PositionUtil_XXX
     {
         const float k_GroundRaycastDistance = 100f;
         readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
         LayerMask m_GroundLayerMask;
         RaycastHitComparer m_RaycastHitComparer;
 
-        public PositionUtil()
+        public PositionUtil_XXX()
         {
             m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground", "Environment" });   // ground and environment
             m_RaycastHitComparer = new RaycastHitComparer();

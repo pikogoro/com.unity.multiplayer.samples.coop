@@ -6,7 +6,6 @@ using System;
 using Unity.BossRoom.Utils;
 using UnityEngine.UI;
 using System.Collections.Generic;
-using UnityEngine.Animations.Rigging;
 #endif  // P56
 
 namespace Unity.BossRoom.CameraUtils
@@ -30,6 +29,7 @@ namespace Unity.BossRoom.CameraUtils
         Transform m_CamTransform = null;
 #endif  //OVR
 
+
         GameObject m_Head = null;
         public GameObject Head
         {
@@ -42,6 +42,12 @@ namespace Unity.BossRoom.CameraUtils
         public GameObject Eyes
         {
             set { m_Eyes = value;  }
+        }
+
+        GameObject m_View = null;
+        public GameObject View
+        {
+            set { m_View = value; }
         }
 
         public float RotationX
@@ -62,46 +68,12 @@ namespace Unity.BossRoom.CameraUtils
             get { return m_AimPosition; }   // world position
         }
 
-        GameObject m_RightHandIK = null;
-        public GameObject RightHandIK
-        {
-            set { m_RightHandIK = value; }
-        }
-
-        GameObject m_GearRightHand = null;
-        public GameObject GearRightHand
-        {
-            set { m_GearRightHand = value; }
-        }
-
-        Transform m_RightHandIKMuzzle = null;
-        public Vector3 MuzzlePosition
-        {
-            get { return m_RightHandIKMuzzle.position; }  // world position
-        }
-        public Vector3 MuzzleLocalPosition
-        {
-            get { return transform.worldToLocalMatrix.MultiplyPoint(m_RightHandIKMuzzle.position); } // world position -> local position
-        }
-
-        Vector3 m_RightHandIKRotationCorrection;
-        public Vector3 RightHandIKRotationCorrection
-        {
-            set { m_RightHandIKRotationCorrection = value; }
-        }
-
-        // Two Bone IK Constraint
-        TwoBoneIKConstraint m_RightHandIKConstraint;
-
         // For lerp of camera view.
         PositionLerper m_PositionLerper;
         RotationLerper m_RotationLerper;
         const float k_LerpTime = 0.08f;
         Vector3 m_LerpedPosition;
         Quaternion m_LerpedRotation;
-
-        // IK
-        Transform m_RightHandIKTarget = null;
 
         // Aiming
         Image m_ReticleImage;
@@ -168,22 +140,6 @@ namespace Unity.BossRoom.CameraUtils
                 m_MainCamera.Follow = transform;
             }
 
-            // IK
-            if (m_RightHandIK != null)
-            {
-                m_RightHandIKConstraint = m_RightHandIK.GetComponent<TwoBoneIKConstraint>();
-                if (m_RightHandIKConstraint != null)
-                {
-                    TwoBoneIKConstraintData data = m_RightHandIKConstraint.data;
-                    m_RightHandIKTarget = data.target;
-                }
-            }
-
-            if (m_GearRightHand != null)
-            {
-                m_RightHandIKMuzzle = m_GearRightHand.transform.Find("muzzle");
-            }
-
             GameObject go = GameObject.Find("Reticle");
             if (go != null) {
                 m_ReticleImage = go.GetComponent<Image>();
@@ -243,9 +199,9 @@ namespace Unity.BossRoom.CameraUtils
                 {
                     m_Head.SetActive(true);
                     //m_ReticleTransform.position = m_ReticleOriginalPosition + new Vector2(0f, 50f);
-                    m_MainCamera.Follow = m_Eyes.transform;
-                    m_MainCamera.LookAt = m_Eyes.transform;
-                    m_Transposer.m_FollowOffset = new Vector3(0.7f, 0f, 0f);
+                    m_MainCamera.Follow = m_View.transform;
+                    m_MainCamera.LookAt = m_View.transform;
+                    m_Transposer.m_FollowOffset = new Vector3(1f, 0f, 0f);
                     m_Transposer.m_XDamping = 0.1f;
                     m_Transposer.m_YDamping = 0.1f;
                     m_Transposer.m_ZDamping = 1f;
@@ -253,14 +209,9 @@ namespace Unity.BossRoom.CameraUtils
                 float offsetY = m_RotationX / 30f;
                 float offsetZ = m_RotationX / 20f;
                 m_Transposer.m_FollowOffset.y = 0.2f - offsetY;
-                m_Transposer.m_FollowOffset.z = -3f + Mathf.Abs(offsetZ);
+                m_Transposer.m_FollowOffset.z = -5f + Mathf.Abs(offsetZ);
                 targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
             }
-
-            // Rotate direction of eyes.
-            m_Eyes.transform.rotation = Quaternion.LookRotation(m_MainCamera.transform.forward);
-            m_RightHandIKTarget.position = m_GearRightHand.transform.position;
-            m_RightHandIKTarget.localRotation = Quaternion.Euler(m_RightHandIKRotationCorrection);    // Why need rotation? I don't know...
 
             // Lerp of character's pitch.
             m_LerpedRotation = m_RotationLerper.LerpRotation(m_LerpedRotation, targetRotation);

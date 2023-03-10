@@ -92,11 +92,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
         /// List of ActionRequests that have been received since the last FixedUpdate ran. This is a static array, to avoid allocs, and
         /// because we don't really want to let this list grow indefinitely.
         /// </summary>
-#if !P56
         readonly ActionRequest[] m_ActionRequests = new ActionRequest[5];
-#else   // !P56
-        readonly ActionRequest[] m_ActionRequests = new ActionRequest[5];
-#endif  // !P56
 
         /// <summary>
         /// Number of ActionRequests that have been queued since the last FixedUpdate.
@@ -120,6 +116,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
         PhysicsWrapper m_PhysicsWrapper;
 
 #if P56
+        ClientCharacter m_ClientCharacter;
+        public ClientCharacter ClientCharacter
+        {
+            set { m_ClientCharacter = value; }
+        }
+
         // For movement
         Joystick m_Joystick;
         bool m_IsMouseDown = false;
@@ -137,11 +139,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
         bool m_JumpStateChanged = false;
         const float k_GroundRaycastDistance = 100f;
 
-        // For boost
-        bool m_BoostChange = false;
+        // For dash
+        bool m_DoDash = false;
 
-        // For guard
-        bool m_IsGuard = false;
+        // For defned
+        bool m_DoDefend = false;
 
         // For rotation
         float m_SensitivityMouseX = 5f;
@@ -274,9 +276,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             CharacterSwap characterSwap = GetComponentInChildren<CharacterSwap>();
             m_CameraController.Head = characterSwap.CharacterModel.head;
             m_CameraController.Eyes = characterSwap.CharacterModel.eyes;
-            m_CameraController.GearRightHand = characterSwap.CharacterModel.gearRightHand;
-            m_CameraController.RightHandIK = characterSwap.CharacterModel.rightHandIK;
-            m_CameraController.RightHandIKRotationCorrection = characterSwap.CharacterModel.rightHandIKRotationCorrection;
+            m_CameraController.View = characterSwap.CharacterModel.view;
 
             GameObject joystick = GameObject.Find("Joystick");
 #if UNITY_STANDALONE || OVR
@@ -595,9 +595,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         movement.RotationX = m_LastRotationX;
 
                         // For boost
-                        if (m_BoostChange)
+                        if (m_DoDash)
                         {
-                            movement.BoostChange = true;
+                            movement.DoDash = true;
                         }
 
                         // For gear
@@ -624,6 +624,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
 
             // Update rotation of camera.
+            m_ClientCharacter.RotationX = m_LastRotationX;
             m_CameraController.RotationX = m_LastRotationX;
             m_CameraController.RotationY = m_LastRotationY;
 #endif  // !P56
@@ -777,8 +778,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     resultData.Direction = direction;
 #else   // !P56
 #if !OVR
-                    resultData.Position = m_CameraController.MuzzleLocalPosition;
-                    resultData.Direction = m_CameraController.AimPosition - m_CameraController.MuzzlePosition;
+                    resultData.Position = m_ClientCharacter.MuzzleLocalPosition;
+                    resultData.Direction = m_CameraController.AimPosition - m_ClientCharacter.MuzzlePosition;
 #else   // !OVR
                     resultData.Direction = m_RHandTransform.forward.normalized;
 #endif  // !OVR
@@ -888,14 +889,24 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 m_JumpStateChanged = true;
             }
 
-            // For boost
+            // For dash
             if (UnityEngine.Input.GetKeyDown(KeyCode.LeftShift))
             {
-                m_BoostChange = true;
+                m_DoDash = true;
             }
             else if (UnityEngine.Input.GetKeyUp(KeyCode.LeftShift))
             {
-                m_BoostChange = false;
+                m_DoDash = false;
+            }
+
+            // For defend
+            if (UnityEngine.Input.GetKeyDown(KeyCode.E))
+            {
+                m_DoDefend = true;
+            }
+            else if (UnityEngine.Input.GetKeyUp(KeyCode.E))
+            {
+                m_DoDefend = false;
             }
 
             // Change mouse cursor lock state. 
@@ -1004,16 +1015,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     {
                         Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
                     }
-                }
-
-                // Handle mouse click event on left mouse button.
-                if (UnityEngine.Input.GetMouseButtonDown(3) && m_CurrentSkillInput == null)
-                {
-                    m_IsGuard = true;
-                }
-                else if (UnityEngine.Input.GetMouseButtonUp(3))
-                {
-                    m_IsGuard = false;
                 }
             }
 

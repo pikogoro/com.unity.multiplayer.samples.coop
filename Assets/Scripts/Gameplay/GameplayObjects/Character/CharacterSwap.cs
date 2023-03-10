@@ -31,10 +31,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             private List<Renderer> m_CachedRenderers;
 #if P56
             public UnityEngine.Avatar avatarOverrides; // reference to humanoid avatar
+
+            // IK
+            public GameObject view;
             public GameObject leftHandIK;
-            public Vector3 leftHandIKRotationCorrection;
+            public Vector3 leftHandIKRotationOffset;
             public GameObject rightHandIK;
-            public Vector3 rightHandIKRotationCorrection;
+            public Vector3 rightHandIKRotationOffset;
 
             // Gear
             public GameObject[] gears;

@@ -9,6 +9,7 @@ using UnityEngine.AI;
 using UnityEngine.Assertions;
 #if P56
 using Unity.BossRoom.Gameplay.Actions;
+using Unity.BossRoom.Utils;
 #endif  // P56
 
 namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
@@ -21,7 +22,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         Knockback = 3,
 #if P56
         PlayerMovement = 4, // Player only
-        PlayerMovement_Boost = 5, // Player only
+        PlayerMovement_Dashing = 5, // Player only
 #endif  // P56
     }
 
@@ -59,7 +60,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         Vector3 m_MovementDirection;
         Vector3 m_PreviousMovementDirection;
 
-        bool m_IsBoost = false;
+        bool m_DoDash = false;
 #endif  // P56
 
         private MovementState m_MovementState;
@@ -190,17 +191,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
 #endif  // USE_THRUSTER
 
-            // For boost
-            if (movement.BoostChange)
+            // For dash
+            if (movement.DoDash)
             {
-                if (m_IsBoost)
-                {
-                    m_IsBoost = false;
-                }
-                else
-                {
-                    m_IsBoost = true;
-                }
+                m_DoDash = true;
             }
 
             // For gear
@@ -349,7 +343,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             if (m_MovementState == MovementState.Idle)
 #if P56
             {
-                m_IsBoost = false;
+                m_DoDash = false;
                 return;
             }
 #else   // P56
@@ -389,10 +383,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if !P56
                 movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount);
 #else   // !P56
-                if (m_IsBoost)
+                if (m_DoDash)
                 {
                     desiredMovementAmount *= 2f;
-                    m_MovementState = MovementState.PlayerMovement_Boost;
+                    m_MovementState = MovementState.PlayerMovement_Dashing;
                 }
 
                 if (m_IsGrounded && m_IsOnNavmesh)
@@ -575,8 +569,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 case MovementState.Knockback:
                     return MovementStatus.Uncontrolled;
 #if P56
-                case MovementState.PlayerMovement_Boost:
-                    return MovementStatus.Boosted;
+                case MovementState.PlayerMovement_Dashing:
+                    return MovementStatus.Dashing;
 #endif  // P56
                 default:
                     return MovementStatus.Normal;
