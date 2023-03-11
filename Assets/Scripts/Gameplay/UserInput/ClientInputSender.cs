@@ -173,6 +173,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
         Transform m_RHandTransform = null;
         bool m_Rotated = false;
 #endif  // OVR
+
+        String m_DebugMsg;
+        public String DebugMsg
+        {
+            set { m_DebugMsg = value; }
+        }
 #endif  // P56
         public ActionState actionState1 { get; private set; }
 
@@ -449,12 +455,17 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
                     else
                     {
-                        float e = 1f;
+                        // Prediction coefficient
+                        float pc = 1f;
                         if (!IsHost)
                         {
-                            e = m_NetworkStats.RTT / Time.fixedDeltaTime;
+                            // Character' movement prediction for remote client.
+                            pc = m_NetworkStats.RTT / Time.fixedDeltaTime;
                         }
-                        movement.Position = transform.position + transform.forward * m_Joystick.Vertical * e + transform.right * m_Joystick.Horizontal * e;
+
+                        // Calculate next movement position
+                        movement.Position = transform.position +
+                            transform.forward * m_Joystick.Vertical * pc + transform.right * m_Joystick.Horizontal * pc;
                         estimatedPosition = movement.Position;
 #if OVR
                         m_IsMoving = true;
@@ -594,7 +605,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                         movement.RotationX = m_LastRotationX;
 
-                        // For boost
+                        // For dash
                         if (m_DoDash)
                         {
                             movement.DoDash = true;
@@ -1134,7 +1145,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     "Position: " + m_LastActionMovement.Position.ToString() + "\n" +
                     "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString() + "\n" +
                     "UpwardVelocity: " + m_UpwardVelocity.ToString() + "\n" +
-                    "SelectedAction: " + m_SelectedAction;
+                    "SelectedAction: " + m_SelectedAction + "\n" +
+                    m_DebugMsg;
             DebugLogText.Log(text);
         }
 #endif  // P56

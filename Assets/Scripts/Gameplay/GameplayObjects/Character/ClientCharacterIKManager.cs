@@ -98,10 +98,16 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             m_RightHandIKConstraint.weight = m_RightHandIKWeight;
 
             m_View.transform.localRotation = Quaternion.Euler(rotaionX, 0f, 0f);
-            m_LeftHandIKTarget.position = m_GearLeftHandPosition.position;
-            m_LeftHandIKTarget.localRotation = m_GearLeftHandPosition.localRotation;
-            m_RightHandIKTarget.position = m_GearRightHandPosition.position;
-            m_RightHandIKTarget.localRotation = m_GearRightHandPosition.localRotation;
+            if (m_GearLeftHandPosition != null)
+            {
+                m_LeftHandIKTarget.position = m_GearLeftHandPosition.position;
+                m_LeftHandIKTarget.localRotation = Quaternion.Euler(m_LeftHandIKRotationOffset) * Quaternion.Euler(-rotaionX, 0f, 0f);
+            }
+            if (m_GearRightHandPosition != null)
+            {
+                m_RightHandIKTarget.position = m_GearRightHandPosition.position;
+                m_RightHandIKTarget.localRotation = Quaternion.Euler(m_RightHandIKRotationOffset) * Quaternion.Euler(-rotaionX, 0f, 0f);
+            }
         }
 
         public void EnableIK(IKPositionType positionType)
@@ -110,15 +116,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             {
                 case IKPositionType.HandLeft:
                     m_LeftHandIKWeight = 1f;
-                    m_GearLeftHandPosition.SetParent(m_LeftHandIKPosition);
-                    m_GearLeftHandPosition.localPosition = Vector3.zero;
-                    m_GearLeftHandPosition.localRotation = Quaternion.identity;
                     break;
                 case IKPositionType.HandRight:
                     m_RightHandIKWeight = 1f;
-                    m_GearRightHandPosition.SetParent(m_RightHandIKPosition);
-                    m_GearRightHandPosition.localPosition = Vector3.zero;
-                    m_GearRightHandPosition.localRotation = Quaternion.identity;
+                    // Change parent and reset local position and rotation according with parent.
+                    m_Gear.transform.SetParent(m_RightHandIKPosition);
+                    m_Gear.transform.localPosition = Vector3.zero;
+                    m_Gear.transform.localRotation = Quaternion.identity;
                     break;
             }
         }
@@ -129,15 +133,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             {
                 case IKPositionType.HandLeft:
                     m_LeftHandIKWeight = 0f;
-                    m_GearLeftHandPosition.SetParent(m_HandLeft.transform);
-                    m_GearLeftHandPosition.localPosition = Vector3.zero;
-                    m_GearLeftHandPosition.localRotation = Quaternion.Euler(m_LeftHandIKRotationOffset);    // Why need rotation? I don't know...
                     break;
                 case IKPositionType.HandRight:
                     m_RightHandIKWeight = 0f;
-                    m_GearRightHandPosition.SetParent(m_HandRight.transform);
-                    m_GearRightHandPosition.localPosition = Vector3.zero;
-                    m_GearRightHandPosition.localRotation = Quaternion.Euler(m_RightHandIKRotationOffset);    // Why need rotation? I don't know...
+                    // Change parent and reset local position and rotation according with parent.
+                    m_Gear.transform.SetParent(m_HandRight.transform);
+                    m_Gear.transform.localPosition = Vector3.zero;
+                    m_Gear.transform.localRotation = Quaternion.identity;
                     break;
             }
         }

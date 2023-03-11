@@ -21,8 +21,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         Charging = 2,
         Knockback = 3,
 #if P56
-        PlayerMovement = 4, // Player only
-        PlayerMovement_Dashing = 5, // Player only
+        Walking = 4,    // Player only
+        Dashing = 5,    // Player only
 #endif  // P56
     }
 
@@ -137,7 +137,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             m_MovementState = MovementState.PathFollowing;
             m_NavPath.SetTargetPosition(position);
 #else   // !P56
-            m_MovementState = MovementState.PlayerMovement;
+            m_MovementState = MovementState.Walking;
 
             if (ActionMovement.IsNull(movement.Position))
             {
@@ -383,15 +383,30 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if !P56
                 movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount);
 #else   // !P56
-                if (m_DoDash)
-                {
-                    desiredMovementAmount *= 2f;
-                    m_MovementState = MovementState.PlayerMovement_Dashing;
-                }
-
                 if (m_IsGrounded && m_IsOnNavmesh)
                 {
                     movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount);
+
+                    // For dash
+                    if (m_DoDash)
+                    {
+                        // Change to local vector.
+                        Vector3 localMovementVector = transform.InverseTransformVector(movementVector);
+
+                        // Check character's direction is forward or not.
+                        if (localMovementVector.z > 0.01f)
+                        {
+                            localMovementVector.z *= 2f;
+                            m_MovementState = MovementState.Dashing;
+                        }
+                        else
+                        {
+                            m_MovementState = MovementState.Walking;
+                        }
+
+                        // Reverse to gloval vector.
+                        movementVector = transform.TransformVector(localMovementVector);
+                    }
                 }
                 else
                 {
@@ -569,7 +584,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 case MovementState.Knockback:
                     return MovementStatus.Uncontrolled;
 #if P56
-                case MovementState.PlayerMovement_Dashing:
+                case MovementState.Dashing:
                     return MovementStatus.Dashing;
 #endif  // P56
                 default:

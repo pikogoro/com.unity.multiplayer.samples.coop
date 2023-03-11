@@ -91,6 +91,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             get { return transform.worldToLocalMatrix.MultiplyPoint(m_Muzzle.position); } // world position -> local position
         }
 
+        // For view rotation lerp
+        RotationLerper m_RotationXLerper;
+        Quaternion m_LerpedXRotation;
+
         // For movement animation spped lerp
         PositionLerper m_MovAnimSpeedLerper;
         Vector3 m_LerpedMovAnimSpeed;
@@ -178,6 +182,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
             // Setup movement animation spped lerper
             m_MovAnimSpeedLerper = new PositionLerper(Vector3.zero, k_LerpTime);
+
+            // Setup rotation X lerper
+            m_RotationXLerper = new RotationLerper(Quaternion.Euler(m_RotationX, 0f, 0f), k_LerpTime);
 #endif  // P56
 
             if (!m_ServerCharacter.IsNpc)
@@ -203,7 +210,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     if (m_ServerCharacter.TryGetComponent(out ClientInputSender inputSender))
                     {
                         // TODO: revisit; anticipated actions would play twice on the host
+#if !P56
                         if (!IsServer)
+#else   // !P56
+                        if (!IsServer || IsHost)    // It is make to be called on Client and Host.
+#endif  // !P56
                         {
                             inputSender.ActionInputEvent += OnActionInput;
                         }
@@ -384,7 +395,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
             if (!m_ServerCharacter.IsNpc)
             {
-                m_IKManager.OnUpdate(-m_RotationX);
+                Quaternion rotationX = Quaternion.Euler(new Vector3(m_RotationX, 0f, 0f));
+                m_LerpedXRotation = m_RotationXLerper.LerpRotation(rotationX, m_LerpedXRotation);
+                m_IKManager.OnUpdate(-m_LerpedXRotation.eulerAngles.x);
             }
 #endif  // P56
 
@@ -394,6 +407,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 // set Animator variables here
                 OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedVariableID, m_CurrentSpeed);
 #else   // !P56
+                /*
+                if (m_ServerCharacter.TryGetComponent(out ClientInputSender inputSender))
+                {
+                    inputSender.DebugMsg = m_CurrentSpeed.ToString();
+                }
+                */
+
                 // set Animator variables here
                 Vector3 movAnimSpeed = new Vector3(m_CurrentMovementDirection.x * m_CurrentSpeed, 0f, m_CurrentMovementDirection.z * m_CurrentSpeed);
                 m_LerpedMovAnimSpeed = m_MovAnimSpeedLerper.LerpPosition(m_LerpedMovAnimSpeed, movAnimSpeed);
@@ -433,7 +453,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
         public void EnableIK()
         {
-            if (m_ServerCharacter.NetLifeState.LifeState.Value != LifeState.Alive)
+            if (m_ServerCharacter.NetLifeState.LifeState.Value != LifeState.Alive || m_IKManager == null)
             {
                 return;
             }
@@ -444,7 +464,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         public void DisableIK()
         {
-            if (m_ServerCharacter.NetLifeState.LifeState.Value != LifeState.Alive)
+            if (m_ServerCharacter.NetLifeState.LifeState.Value != LifeState.Alive || m_IKManager == null)
             {
                 return;
             }
