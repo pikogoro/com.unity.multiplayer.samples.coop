@@ -165,7 +165,7 @@ namespace Unity.BossRoom.CameraUtils
         }
 
 #if P56
-        private void Update()
+        private void LateUpdate()
         {
             // Change FPS / TPS view.
             if (Input.GetKeyDown(KeyCode.Backslash))
@@ -183,13 +183,13 @@ namespace Unity.BossRoom.CameraUtils
                 {
                     m_Head.SetActive(false);
                     //m_ReticleTransform.position = m_ReticleOriginalPosition;
-                    m_MainCamera.Follow = m_Eyes.transform;
+                    m_MainCamera.Follow = m_View.transform;
                     m_MainCamera.LookAt = null;
-                    m_Transposer.m_FollowOffset = Vector3.zero;
                     m_Transposer.m_XDamping = 0f;
                     m_Transposer.m_YDamping = 0f;
                     m_Transposer.m_ZDamping = 0f;
                 }
+                m_Transposer.m_FollowOffset = transform.InverseTransformPoint(m_Eyes.transform.position) - m_View.transform.localPosition;
                 targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
             }
             else

@@ -131,6 +131,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if UNITY_ANDROID
         int m_TouchFingerId = -1;
 #endif
+
+        // For RTT
         NetworkStats m_NetworkStats = null;
 
         // For jump
@@ -139,11 +141,22 @@ namespace Unity.BossRoom.Gameplay.UserInput
         bool m_JumpStateChanged = false;
         const float k_GroundRaycastDistance = 100f;
 
+        // For ADS
+        bool m_IsDownMouseButton1 = false;
+        bool m_IsChangedAdsState = false;
+
+        // For defense
+        bool m_IsDownKeyCodeE= false;
+        bool m_IsChangedDefenseState = false;
+        bool m_IsDefending = false;
+        bool m_PreviousIsDefending;
+
         // For dash
         bool m_DoDash = false;
 
-        // For defned
-        bool m_DoDefend = false;
+        // For crouching
+        bool m_IsDownKeyCodeC = false;
+        bool m_IsChangedCrouchingState = false;
 
         // For rotation
         float m_SensitivityMouseX = 5f;
@@ -162,8 +175,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
         int m_SelectedAction = 1;
         const int k_MinAction = 1;
         const int k_MaxAction = 7;
-        int m_CurrentGear = 1;
-
+        int m_CurrentGearNum = 1;
 
         PositionUtil m_PositionUtil;
 #if OVR
@@ -416,7 +428,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 float rotationDeltaX = Math.Abs(rotationX - m_LastRotationX);
                 float rotationDeltaY = Math.Abs(rotationY - m_LastSentRotationY);
                 rotation = Quaternion.Euler(0f, rotationY, 0f);
-                if (rotationDeltaX > 1f || rotationDeltaY > 1f)
+                //if (rotationDeltaX > 1f || rotationDeltaY > 1f)
+                if (rotationDeltaX > 0f || rotationDeltaY > 0f)
                 {
                     // Start rotation.
                     m_RotationState = RotationState.Rotating;
@@ -436,8 +449,44 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
 #endif  // UNITY_STANDALONE
 
-            //if (m_MoveRequest || (m_RotationState != RotationState.Idle) || m_JumpStateChanged)
-            if (m_MoveRequest || (m_RotationState != RotationState.Idle) || m_UpwardVelocity != 0)
+            bool characterStateChanged = false;
+
+            // For gear
+            if (m_CurrentGearNum != m_SelectedAction)
+            {
+                characterStateChanged = true;
+            }
+
+            // For ads
+            if (m_IsChangedAdsState)
+            {
+                characterStateChanged = true;
+            }
+
+            // For defense
+            if (m_IsChangedDefenseState)
+            {
+                characterStateChanged = true;
+            }
+
+            if (m_PreviousIsDefending != m_IsDefending)
+            {
+                characterStateChanged = true;
+            }
+
+            // For dash
+            if (m_DoDash)
+            {
+                characterStateChanged = true;
+            }
+
+            // For crouching
+            if (m_IsChangedCrouchingState)
+            {
+                characterStateChanged = true;
+            }
+
+            if (m_MoveRequest || (m_RotationState != RotationState.Idle) || m_UpwardVelocity != 0 || characterStateChanged == true)
             {
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
@@ -605,24 +654,58 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                         movement.RotationX = m_LastRotationX;
 
-                        // For dash
-                        if (m_DoDash)
-                        {
-                            movement.DoDash = true;
-                        }
+                        // Set upward velocity and reset jump state.
+                        movement.UpwardVelocity = m_UpwardVelocity;
 
                         // For gear
-                        if (m_CurrentGear != m_SelectedAction)
+                        if (m_CurrentGearNum!= m_SelectedAction)
                         {
                             if (1 <= m_SelectedAction && m_SelectedAction <= 3)
                             {
-                                m_CurrentGear = m_SelectedAction;
-                                movement.ChosedGear = m_CurrentGear;
+                                m_CurrentGearNum = m_SelectedAction;
+                                movement.GearNumChosen = m_CurrentGearNum;
                             }
                         }
 
-                        // Set upward velocity and reset jump state.
-                        movement.UpwardVelocity = m_UpwardVelocity;
+                        // For ads
+                        if (m_IsChangedAdsState)
+                        {
+                            movement.AdsState = ActionMovement.State.IsChanged;
+                            m_IsChangedAdsState = false;
+                        }
+
+                        // For defense
+                        if (m_IsChangedDefenseState)
+                        {
+                            movement.DefenseState = ActionMovement.State.IsChanged;
+                            m_IsChangedDefenseState = false;
+                        }
+
+                        if (m_PreviousIsDefending != m_IsDefending)
+                        {
+                            if (m_IsDefending)
+                            {
+                                movement.DefenseState = ActionMovement.State.Enabled;
+                            }
+                            else
+                            {
+                                movement.DefenseState = ActionMovement.State.Disabled;
+                            }
+                            m_PreviousIsDefending = m_IsDefending;
+                        }
+
+                        // For dash
+                        if (m_DoDash)
+                        {
+                            movement.DashState = ActionMovement.State.Enabled;
+                        }
+
+                        // For crouching
+                        if (m_IsChangedCrouchingState)
+                        {
+                            movement.CrouchingState = ActionMovement.State.IsChanged;
+                            m_IsChangedCrouchingState = false;
+                        }
 
                         m_ServerCharacter.SendCharacterInputServerRpc(movement);
 #if !OVR
@@ -910,14 +993,32 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 m_DoDash = false;
             }
 
-            // For defend
+            // For defense
             if (UnityEngine.Input.GetKeyDown(KeyCode.E))
             {
-                m_DoDefend = true;
+                if (m_IsDownKeyCodeE == false)
+                {
+                    m_IsChangedDefenseState = true;
+                    m_IsDownKeyCodeE = true;
+                }
             }
             else if (UnityEngine.Input.GetKeyUp(KeyCode.E))
             {
-                m_DoDefend = false;
+                m_IsDownKeyCodeE = false;
+            }
+
+            // For crouching
+            if (UnityEngine.Input.GetKeyDown(KeyCode.C))
+            {
+                if (m_IsDownKeyCodeC == false)
+                {
+                    m_IsChangedCrouchingState = true;
+                    m_IsDownKeyCodeC = true;
+                }
+            }
+            else if (UnityEngine.Input.GetKeyUp(KeyCode.C))
+            {
+                m_IsDownKeyCodeC = false;
             }
 
             // Change mouse cursor lock state. 
@@ -964,14 +1065,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if UNITY_STANDALONE
             if (!EventSystem.current.IsPointerOverGameObject())
             {
-                // Handle mouse click event on right mouse button.
-                //if (UnityEngine.Input.GetMouseButtonDown(1) && m_CurrentSkillInput == null)
+                // Handle mouse click event on left mouse button.
                 if (UnityEngine.Input.GetMouseButtonDown(0) && m_CurrentSkillInput == null)
                 {
                     switch (m_SelectedAction)
                     {
-                        // Always event is regarded as keyboard event
-
+                        // Always an event is regarded as keyboard event.
                         case 1:
                             RequestAction(actionState1.actionID, SkillTriggerStyle.Keyboard);
                             break;
@@ -996,8 +1095,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         default:
                             break;
                     }
+
+                    // If mouse cursor is not locked, lock it.
+                    if (Cursor.lockState == CursorLockMode.None)
+                    {
+                        Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
+                    }
                 }
-                //else if (UnityEngine.Input.GetMouseButtonUp(1))
                 else if (UnityEngine.Input.GetMouseButtonUp(0))
                 {
                     switch (m_SelectedAction)
@@ -1016,16 +1120,28 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
                 }
 
-                // Handle mouse click event on left mouse button.
-                if (UnityEngine.Input.GetMouseButtonDown(0) && m_CurrentSkillInput == null)
+                // Handle mouse click event on right mouse button.
+                if (UnityEngine.Input.GetMouseButtonDown(1) && m_CurrentSkillInput == null)
                 {
-                    //RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
-
-                    // If mouse cursor is not locked, lock it.
-                    if (Cursor.lockState == CursorLockMode.None)
+                    if (m_IsDownMouseButton1 != false)
                     {
-                        Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
+                        m_IsChangedAdsState = true;
+                        m_IsDownMouseButton1 = true;
                     }
+                }
+                else if (UnityEngine.Input.GetMouseButtonUp(1))
+                {
+                    m_IsDownMouseButton1 = false;
+                }
+
+                // Handle mouse click event on middle mouse button.
+                if (UnityEngine.Input.GetMouseButtonDown(2) && m_CurrentSkillInput == null)
+                {
+                    m_IsDefending = true;
+                }
+                else if (UnityEngine.Input.GetMouseButtonUp(2))
+                {
+                    m_IsDefending = false;
                 }
             }
 

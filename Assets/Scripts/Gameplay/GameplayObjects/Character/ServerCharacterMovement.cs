@@ -60,7 +60,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         Vector3 m_MovementDirection;
         Vector3 m_PreviousMovementDirection;
 
-        bool m_DoDash = false;
+        bool m_IsDoingAds = false;
+        bool m_IsDashing = false;
+        bool m_IsCrouching = false;
+        bool m_PreviousIsCrouching;
 #endif  // P56
 
         private MovementState m_MovementState;
@@ -191,16 +194,80 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
 #endif  // USE_THRUSTER
 
-            // For dash
-            if (movement.DoDash)
+            // For gear
+            if (0 < movement.GearNumChosen)
             {
-                m_DoDash = true;
+                m_CharLogic.CurrentGear.Value = movement.GearNumChosen;
             }
 
-            // For gear
-            if (0 < movement.ChosedGear)
+            // For ADS
+            switch (movement.AdsState)
             {
-                m_CharLogic.CurrentGear.Value = movement.ChosedGear;
+                case ActionMovement.State.IsChanged:
+                    m_IsDoingAds = !m_IsDoingAds; // toggle
+                    break;
+                case ActionMovement.State.Enabled:
+                    m_IsDoingAds = true;
+                    break;
+                case ActionMovement.State.Disabled:
+                    m_IsDoingAds = false;
+                    break;
+                default:
+                    break;
+            }
+
+            // For defense
+            switch (movement.DefenseState)
+            {
+                case ActionMovement.State.IsChanged:
+                    m_CharLogic.IsDefending.Value = !m_CharLogic.IsDefending.Value; // toggle
+                    break;
+                case ActionMovement.State.Enabled:
+                    if (m_CharLogic.IsDefending.Value != true)
+                    {
+                        m_CharLogic.IsDefending.Value = true;
+                    }
+                    break;
+                case ActionMovement.State.Disabled:
+                    if (m_CharLogic.IsDefending.Value != false)
+                    {
+                        m_CharLogic.IsDefending.Value = false;
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            // For dash
+            switch (movement.DashState)
+            {
+                case ActionMovement.State.IsChanged:
+                    m_IsDashing = !m_IsDashing;   // toggle
+                    break;
+                case ActionMovement.State.Enabled:
+                    m_IsDashing = true;
+                    break;
+                case ActionMovement.State.Disabled:
+                    m_IsDashing = false;
+                    break;
+                default:
+                    break;
+            }
+
+            // For crouching
+            switch (movement.CrouchingState)
+            {
+                case ActionMovement.State.IsChanged:
+                    m_IsCrouching = !m_IsCrouching;   // toggle
+                    break;
+                case ActionMovement.State.Enabled:
+                    m_IsCrouching = true;
+                    break;
+                case ActionMovement.State.Disabled:
+                    m_IsCrouching = false;
+                    break;
+                default:
+                    break;
             }
 #endif  // !P56
         }
@@ -321,6 +388,12 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_CharLogic.MovementDirection.Value = m_MovementDirection;
                 m_PreviousMovementDirection = m_MovementDirection;
             }
+
+            if (m_PreviousIsCrouching != m_IsCrouching)
+            {
+                m_CharLogic.IsCrouching.Value = m_IsCrouching;
+                m_PreviousIsCrouching = m_IsCrouching;
+            }
 #endif  // P56
         }
 
@@ -343,7 +416,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             if (m_MovementState == MovementState.Idle)
 #if P56
             {
-                m_DoDash = false;
+                m_IsDashing = false;
                 return;
             }
 #else   // P56
@@ -388,7 +461,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount);
 
                     // For dash
-                    if (m_DoDash)
+                    if (m_IsDashing)
                     {
                         // Change to local vector.
                         Vector3 localMovementVector = transform.InverseTransformVector(movementVector);
@@ -591,5 +664,12 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     return MovementStatus.Normal;
             }
         }
+
+#if P56
+        public void StopDashing()
+        {
+            m_IsDashing = false;
+        }
+#endif  // P56
     }
 }

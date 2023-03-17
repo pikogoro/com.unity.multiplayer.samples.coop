@@ -79,6 +79,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             set { m_RotationX = value; }
         }
 
+        bool m_IsDefending = false;
+        bool m_IsCrouching = false;
+
         ClientCharacterIKManager m_IKManager;
 
         Transform m_Muzzle = null;
@@ -168,6 +171,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
             m_ServerCharacter.MovementDirection.OnValueChanged += OnMovementDirectionChanged;
             m_ServerCharacter.CurrentGear.OnValueChanged += OnCurrentGearChanged;
+            m_ServerCharacter.IsDefending.OnValueChanged += OnDefenseStateChanged;
+            m_ServerCharacter.IsCrouching.OnValueChanged += OnCrouchingStateChanged;
 #endif  // P56
 
             // sync our visualization position & rotation to the most up to date version received from server
@@ -231,7 +236,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 // Setup IK manager of client character
                 m_IKManager = new ClientCharacterIKManager();
                 m_IKManager.Initialize(m_CharacterSwapper, transform);
-                m_IKManager.SetGear(m_CharacterSwapper.CharacterModel.gears[0]);
+                m_IKManager.SetGearLeftHand(m_CharacterSwapper.CharacterModel.gearsLeftHand[0]);
+                m_IKManager.SetGearRightHand(m_CharacterSwapper.CharacterModel.gearsRightHand[0]);
                 m_Muzzle = m_IKManager.GearMuzzle;
                 EnableIK();
 #endif  // !P56
@@ -247,6 +253,12 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 //m_NetState.CancelActionsByPrototypeIDEventClient -= CancelActionFXByPrototypeID;
                 //m_NetState.OnStopChargingUpClient -= OnStoppedChargingUpClient;
                 m_ServerCharacter.IsStealthy.OnValueChanged -= OnStealthyChanged;
+#if P56
+                m_ServerCharacter.MovementDirection.OnValueChanged -= OnMovementDirectionChanged;
+                m_ServerCharacter.CurrentGear.OnValueChanged -= OnCurrentGearChanged;
+                m_ServerCharacter.IsDefending.OnValueChanged -= OnDefenseStateChanged;
+                m_ServerCharacter.IsCrouching.OnValueChanged -= OnCrouchingStateChanged;
+#endif  // P56
 
                 if (m_ServerCharacter.TryGetComponent(out ClientInputSender sender))
                 {
@@ -332,18 +344,36 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         void OnMovementStatusChanged(MovementStatus previousValue, MovementStatus newValue)
         {
+            if (previousValue == newValue)
+            {
+                return;
+            }
+
             m_CurrentSpeed = GetVisualMovementSpeed(newValue);
+
+            // Change IK state during dashing.
+            if (newValue == MovementStatus.Dashing)
+            {
+                DisableIK();
+            }
+            else if (previousValue == MovementStatus.Dashing)
+            {
+                EnableIK();
+            }
         }
 
 #if P56
         void OnMovementDirectionChanged(Vector3 previousValue, Vector3 newValue)
         {
-            m_CurrentMovementDirection = newValue;
+            if (previousValue != newValue)
+            {
+                m_CurrentMovementDirection = newValue;
+            }
         }
 
         void OnRotationXChanged(float previousValue, float newValue)
         {
-            if (!m_ServerCharacter.IsOwner)
+            if (previousValue != newValue && !m_ServerCharacter.IsOwner)
             {
                 m_RotationX = newValue;
             }
@@ -351,26 +381,66 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         void OnCurrentGearChanged(int previousValue, int newValue)
         {
-            GameObject[] gears = CharacterSwap.CharacterModel.gears;
-            GameObject chosedGear = null;
+            if (previousValue == newValue)
+            {
+                return;
+            }
 
-            for (int i = 0; i < gears.Length; i++)
+            GameObject[] gearsLeftHand = CharacterSwap.CharacterModel.gearsLeftHand;
+            GameObject[] gearsRightHand = CharacterSwap.CharacterModel.gearsRightHand;
+            GameObject gearLeftHandChosen = null;
+            GameObject gearRightHandChosen = null;
+
+            for (int i = 0; i < gearsLeftHand.Length; i++)
             {
                 // Disable all gears.
-                gears[i].SetActive(false);
+                gearsLeftHand[i].SetActive(false);
+                gearsRightHand[i].SetActive(false);
 
                 if (i + 1 == newValue)
                 {
-                    chosedGear = gears[i];
+                    gearLeftHandChosen = gearsLeftHand[i];
+                    gearRightHandChosen = gearsRightHand[i];
                 }
             }
 
             // Enable only chosed gear.
-            chosedGear.SetActive(true);
+            gearLeftHandChosen.SetActive(true);
+            gearRightHandChosen.SetActive(true);
 
             // Get muzzle transform from chosed gear.
-            m_IKManager.SetGear(chosedGear);
+            m_IKManager.SetGearLeftHand(gearLeftHandChosen);
+            m_IKManager.SetGearRightHand(gearRightHandChosen);
             m_Muzzle = m_IKManager.GearMuzzle;
+        }
+
+        void OnDefenseStateChanged(bool previousValue, bool newValue)
+        {
+            if (previousValue == newValue)
+            {
+                return;
+            }
+
+            m_IsDefending = newValue;
+
+            if (m_IsDefending == true)
+            {
+                m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+                m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+            }
+            else
+            {
+                m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+                m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+            }
+        }
+
+        void OnCrouchingStateChanged(bool previousValue, bool newValue)
+        {
+            if (previousValue != newValue)
+            {
+                m_IsCrouching = newValue;
+            }
         }
 #endif  // P56
 
@@ -407,13 +477,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 // set Animator variables here
                 OurAnimator.SetFloat(m_VisualizationConfiguration.SpeedVariableID, m_CurrentSpeed);
 #else   // !P56
-                /*
-                if (m_ServerCharacter.TryGetComponent(out ClientInputSender inputSender))
-                {
-                    inputSender.DebugMsg = m_CurrentSpeed.ToString();
-                }
-                */
-
                 // set Animator variables here
                 Vector3 movAnimSpeed = new Vector3(m_CurrentMovementDirection.x * m_CurrentSpeed, 0f, m_CurrentMovementDirection.z * m_CurrentSpeed);
                 m_LerpedMovAnimSpeed = m_MovAnimSpeedLerper.LerpPosition(m_LerpedMovAnimSpeed, movAnimSpeed);
@@ -453,24 +516,33 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
         public void EnableIK()
         {
-            if (m_ServerCharacter.NetLifeState.LifeState.Value != LifeState.Alive || m_IKManager == null)
+            // Don't enable IK if dead.
+            if (m_ServerCharacter.NetLifeState.LifeState.Value != LifeState.Alive)
             {
                 return;
             }
 
-            m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
-            m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+            if (m_IKManager != null)
+            {
+                if (m_IsDefending == true)
+                {
+                    m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+                }
+                else
+                {
+                    m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+                }
+                m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+            }
         }
 
         public void DisableIK()
         {
-            if (m_ServerCharacter.NetLifeState.LifeState.Value != LifeState.Alive || m_IKManager == null)
+            if (m_IKManager != null)
             {
-                return;
+                m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+                m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandRight);
             }
-
-            m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
-            m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandRight);
         }
 #endif  // P56
     }

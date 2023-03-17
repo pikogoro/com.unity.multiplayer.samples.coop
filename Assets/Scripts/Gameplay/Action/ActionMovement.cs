@@ -12,13 +12,23 @@ namespace Unity.BossRoom.Gameplay.Actions
     /// </summary>
     public struct ActionMovement : INetworkSerializable
     {
+        public enum State
+        {
+            Null = 0,
+            IsChanged = 1,
+            Enabled = 2,
+            Disabled = 3,
+        }
+
         public Vector3 Position;            // position of character.
         public Quaternion Rotation;         // rotation of character's facing.
         public float RotationX;
         public float UpwardVelocity;        // upward velocity of character.
-        public int ChosedGear;              // chosed gear to action.
-        public bool DoDash;                 // character dashes.
-        public bool DoDefend;               // character defends.
+        public int GearNumChosen;           // gear number chosen to do action (0: no change, 1-: gear number).
+        public State AdsState;              // ADS(aim down sight) state.
+        public State DefenseState;          // defense state.
+        public State DashState;             // dash state.
+        public State CrouchingState;        // crouching state.
 
         public static Vector3 PositionNull
         {
@@ -38,9 +48,11 @@ namespace Unity.BossRoom.Gameplay.Actions
             HasRotation = 1 << 1,
             HasRotationX = 1 << 2,
             HasUpwardVelocity = 1 << 3,
-            HasChosedGear = 1 << 4,
-            HasDoDash = 1 << 5,
-            HasDoDefend = 1 << 6
+            HasGearNumChosen = 1 << 4,
+            HasAdsState = 1 << 5,
+            HasDefenseState = 1 << 6,
+            HasDashState = 1 << 7,
+            HasCrouchingState = 1 << 8,
         }
 
         public static bool IsNull(Vector3 value)
@@ -72,17 +84,25 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 flags |= PackFlags.HasUpwardVelocity;
             }
-            if (ChosedGear != 0)
+            if (GearNumChosen != 0)
             {
-                flags |= PackFlags.HasChosedGear;
+                flags |= PackFlags.HasGearNumChosen;
             }
-            if (DoDash != false)
+            if (AdsState != State.Null)
             {
-                flags |= PackFlags.HasDoDash;
+                flags |= PackFlags.HasAdsState;
             }
-            if (DoDefend != false)
+            if (DefenseState != State.Null)
             {
-                flags |= PackFlags.HasDoDefend;
+                flags |= PackFlags.HasDefenseState;
+            }
+            if (DashState != State.Null)
+            {
+                flags |= PackFlags.HasDashState;
+            }
+            if (CrouchingState != State.Null)
+            {
+                flags |= PackFlags.HasCrouchingState;
             }
 
             return flags;
@@ -114,17 +134,25 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 serializer.SerializeValue(ref UpwardVelocity);
             }
-            if ((flags & PackFlags.HasChosedGear) != 0)
+            if ((flags & PackFlags.HasGearNumChosen) != 0)
             {
-                serializer.SerializeValue(ref ChosedGear);
+                serializer.SerializeValue(ref GearNumChosen);
             }
-            if ((flags & PackFlags.HasDoDash) != 0)
+            if ((flags & PackFlags.HasAdsState) != 0)
             {
-                serializer.SerializeValue(ref DoDash);
+                serializer.SerializeValue(ref AdsState);
             }
-            if ((flags & PackFlags.HasDoDefend) != 0)
+            if ((flags & PackFlags.HasDefenseState) != 0)
             {
-                serializer.SerializeValue(ref DoDefend);
+                serializer.SerializeValue(ref DefenseState);
+            }
+            if ((flags & PackFlags.HasDashState) != 0)
+            {
+                serializer.SerializeValue(ref DashState);
+            }
+            if ((flags & PackFlags.HasCrouchingState) != 0)
+            {
+                serializer.SerializeValue(ref CrouchingState);
             }
         }
     }

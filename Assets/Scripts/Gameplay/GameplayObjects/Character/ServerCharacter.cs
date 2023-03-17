@@ -52,8 +52,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         // Indicates the character's movement direction (normalized).
         public NetworkVariable<Vector3> MovementDirection { get; } = new NetworkVariable<Vector3>();
 
-        // Indicates pattern of character's gear.
-        public NetworkVariable<int> CurrentGear { get; set; } = new NetworkVariable<int>();
+        // Indicates character's current gear.
+        public NetworkVariable<int> CurrentGear { get; } = new NetworkVariable<int>();
+
+        // Indicates character is defending or not.
+        public NetworkVariable<bool> IsDefending { get; } = new NetworkVariable<bool>();
+
+        // Indicates character is crouching or not.
+        public NetworkVariable<bool> IsCrouching { get; } = new NetworkVariable<bool>();
 #endif  // P56
 
         public NetworkVariable<ulong> HeldNetworkObject { get; } = new NetworkVariable<ulong>();
@@ -266,6 +272,15 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         [ServerRpc]
         public void RecvDoActionServerRPC(ActionRequestData data)
         {
+#if P56
+            Movement.StopDashing();
+
+            if (IsDefending.Value == true)
+            {
+                IsDefending.Value = false;
+            }
+#endif  // P56
+
             ActionRequestData data1 = data;
             if (!GameDataSource.Instance.GetActionPrototypeByID(data1.ActionID).Config.IsFriendly)
             {
