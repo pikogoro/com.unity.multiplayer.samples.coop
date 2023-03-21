@@ -68,6 +68,9 @@ namespace Unity.BossRoom.CameraUtils
             get { return m_AimPosition; }   // world position
         }
 
+        // Zoom
+        int m_ZoomLevel;
+
         // For lerp of camera view.
         PositionLerper m_PositionLerper;
         RotationLerper m_RotationLerper;
@@ -135,10 +138,13 @@ namespace Unity.BossRoom.CameraUtils
 
             m_Transposer = m_MainCamera.GetComponentInChildren<CinemachineTransposer>();
 
+            /*
             if (m_MainCamera)
             {
                 m_MainCamera.Follow = transform;
             }
+            */
+            ZoomReset();
 
             GameObject go = GameObject.Find("Reticle");
             if (go != null) {
@@ -165,7 +171,7 @@ namespace Unity.BossRoom.CameraUtils
         }
 
 #if P56
-        private void LateUpdate()
+        private void LateUpdate()   // this is LateUpdate
         {
             // Change FPS / TPS view.
             if (Input.GetKeyDown(KeyCode.Backslash))
@@ -298,6 +304,27 @@ namespace Unity.BossRoom.CameraUtils
             public int Compare(RaycastHit x, RaycastHit y)
             {
                 return x.distance.CompareTo(y.distance);
+            }
+        }
+
+        public void ZoomReset()
+        {
+            m_MainCamera.m_Lens.FieldOfView = 55f;
+        }
+
+        public void ZoomUp()
+        {
+            if (m_MainCamera.m_Lens.FieldOfView > 3.4375f)
+            {
+                m_MainCamera.m_Lens.FieldOfView /= 2f;
+            }
+        }
+
+        public void ZoomDown()
+        {
+            if (m_MainCamera.m_Lens.FieldOfView < 27.5f)
+            {
+                m_MainCamera.m_Lens.FieldOfView *= 2f;
             }
         }
 #endif  // P56

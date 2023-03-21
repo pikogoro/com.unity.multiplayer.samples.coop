@@ -142,11 +142,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
         const float k_GroundRaycastDistance = 100f;
 
         // For ADS
+        bool m_IsADS = false;
         bool m_IsDownMouseButton1 = false;
-        bool m_IsChangedAdsState = false;
+        bool m_PreviousIsADS;
 
         // For defense
-        bool m_IsDownKeyCodeE= false;
+        bool m_IsDownKeyCodeE = false;
         bool m_IsChangedDefenseState = false;
         bool m_IsDefending = false;
         bool m_PreviousIsDefending;
@@ -172,10 +173,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
         RotationState m_RotationState = RotationState.Idle;
 
         // For current action selection
-        int m_SelectedAction = 1;
-        const int k_MinAction = 1;
-        const int k_MaxAction = 7;
-        int m_CurrentGearNum = 1;
+        int m_CurrentAttackType = 1;
+        int m_ChosenAttackType = 1;
+        const int k_MinAttackType = 1;
+        const int k_MaxAttackType = 3;
 
         PositionUtil m_PositionUtil;
 #if OVR
@@ -452,19 +453,19 @@ namespace Unity.BossRoom.Gameplay.UserInput
             bool characterStateChanged = false;
 
             // For gear
-            if (m_CurrentGearNum != m_SelectedAction)
+            if (m_CurrentAttackType != m_ChosenAttackType)
             {
                 characterStateChanged = true;
             }
 
             // For ads
-            if (m_IsChangedAdsState)
+            if (m_PreviousIsADS != m_IsADS)
             {
                 characterStateChanged = true;
             }
 
             // For defense
-            if (m_IsChangedDefenseState)
+            if (m_IsChangedDefenseState == true)
             {
                 characterStateChanged = true;
             }
@@ -475,7 +476,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
 
             // For dash
-            if (m_DoDash)
+            if (m_DoDash == true)
             {
                 characterStateChanged = true;
             }
@@ -658,20 +659,27 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         movement.UpwardVelocity = m_UpwardVelocity;
 
                         // For gear
-                        if (m_CurrentGearNum!= m_SelectedAction)
+                        if (m_CurrentAttackType!= m_ChosenAttackType)
                         {
-                            if (1 <= m_SelectedAction && m_SelectedAction <= 3)
+                            if (1 <= m_ChosenAttackType && m_ChosenAttackType <= 3)
                             {
-                                m_CurrentGearNum = m_SelectedAction;
-                                movement.GearNumChosen = m_CurrentGearNum;
+                                m_CurrentAttackType = m_ChosenAttackType;
+                                movement.AttackType = m_CurrentAttackType;
                             }
                         }
 
-                        // For ads
-                        if (m_IsChangedAdsState)
+                        // For ADS
+                        if (m_PreviousIsADS != m_IsADS)
                         {
-                            movement.AdsState = ActionMovement.State.IsChanged;
-                            m_IsChangedAdsState = false;
+                            if (m_IsADS)
+                            {
+                                movement.ADSState = ActionMovement.State.Enabled;
+                            }
+                            else
+                            {
+                                movement.ADSState = ActionMovement.State.Disabled;
+                            }
+                            m_PreviousIsADS = m_IsADS;
                         }
 
                         // For defense
@@ -928,6 +936,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         void Update()
         {
+#if !P56
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
                 RequestAction(actionState1.actionID, SkillTriggerStyle.Keyboard);
@@ -952,6 +961,20 @@ namespace Unity.BossRoom.Gameplay.UserInput
             {
                 RequestAction(actionState3.actionID, SkillTriggerStyle.KeyboardRelease);
             }
+#else   // !P56
+            if (Input.GetKeyDown(KeyCode.Alpha1))
+            {
+                m_ChosenAttackType = 1;
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha2))
+            {
+                m_ChosenAttackType = 2;
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha3))
+            {
+                m_ChosenAttackType = 3;
+            }
+#endif  // !P56
 
             if (Input.GetKeyDown(KeyCode.Alpha5))
             {
@@ -1068,7 +1091,14 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 // Handle mouse click event on left mouse button.
                 if (UnityEngine.Input.GetMouseButtonDown(0) && m_CurrentSkillInput == null)
                 {
-                    switch (m_SelectedAction)
+                    // If mouse cursor is not locked, lock it.
+                    if (Cursor.lockState == CursorLockMode.None)
+                    {
+                        Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
+                        return;
+                    }
+
+                    switch (m_ChosenAttackType)
                     {
                         // Always an event is regarded as keyboard event.
                         case 1:
@@ -1080,31 +1110,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         case 3:
                             RequestAction(actionState3.actionID, SkillTriggerStyle.Keyboard);
                             break;
-                        case 4:
-                            RequestAction(GameDataSource.Instance.Emote1ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
-                            break;
-                        case 5:
-                            RequestAction(GameDataSource.Instance.Emote2ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
-                            break;
-                        case 6:
-                            RequestAction(GameDataSource.Instance.Emote3ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
-                            break;
-                        case 7:
-                            RequestAction(GameDataSource.Instance.Emote4ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
-                            break;
                         default:
                             break;
-                    }
-
-                    // If mouse cursor is not locked, lock it.
-                    if (Cursor.lockState == CursorLockMode.None)
-                    {
-                        Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
                     }
                 }
                 else if (UnityEngine.Input.GetMouseButtonUp(0))
                 {
-                    switch (m_SelectedAction)
+                    switch (m_ChosenAttackType)
                     {
                         case 1:
                             RequestAction(actionState1.actionID, SkillTriggerStyle.KeyboardRelease);
@@ -1123,10 +1135,19 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 // Handle mouse click event on right mouse button.
                 if (UnityEngine.Input.GetMouseButtonDown(1) && m_CurrentSkillInput == null)
                 {
-                    if (m_IsDownMouseButton1 != false)
+                    if (m_IsDownMouseButton1 == false)
                     {
-                        m_IsChangedAdsState = true;
+                        m_IsADS = !m_IsADS; // toggle
                         m_IsDownMouseButton1 = true;
+
+                        if (m_IsADS == false)
+                        {
+                            m_CameraController.ZoomReset();
+                        }
+                        else
+                        {
+                            m_CameraController.ZoomUp();
+                        }
                     }
                 }
                 else if (UnityEngine.Input.GetMouseButtonUp(1))
@@ -1147,20 +1168,34 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
             // Change selected action by mouse wheel.
             float wheel = Input.GetAxis("Mouse ScrollWheel");
-            if (wheel > 0f)
+            if (m_IsADS)
             {
-                m_SelectedAction++;
-                if (m_SelectedAction > k_MaxAction)
+                if (wheel > 0f)
                 {
-                    m_SelectedAction = k_MinAction;
+                    m_CameraController.ZoomUp();
+                }
+                else if (wheel < 0)
+                {
+                    m_CameraController.ZoomDown();
                 }
             }
-            else if (wheel < 0)
+            else
             {
-                m_SelectedAction--;
-                if (m_SelectedAction < k_MinAction)
+                if (wheel > 0f)
                 {
-                    m_SelectedAction = k_MaxAction;
+                    m_ChosenAttackType++;
+                    if (m_ChosenAttackType > k_MaxAttackType)
+                    {
+                        m_ChosenAttackType = k_MinAttackType;
+                    }
+                }
+                else if (wheel < 0)
+                {
+                    m_ChosenAttackType--;
+                    if (m_ChosenAttackType < k_MinAttackType)
+                    {
+                        m_ChosenAttackType = k_MaxAttackType;
+                    }
                 }
             }
 #elif UNITY_ANDROID
@@ -1261,7 +1296,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     "Position: " + m_LastActionMovement.Position.ToString() + "\n" +
                     "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString() + "\n" +
                     "UpwardVelocity: " + m_UpwardVelocity.ToString() + "\n" +
-                    "SelectedAction: " + m_SelectedAction + "\n" +
+                    "CurrentAttackType: " + m_CurrentAttackType + "\n" +
                     m_DebugMsg;
             DebugLogText.Log(text);
         }

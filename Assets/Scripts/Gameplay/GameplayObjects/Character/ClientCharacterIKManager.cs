@@ -20,6 +20,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             HandRight,
         }
 
+        CharacterGearManager m_GearManager;
+
         GameObject m_View = null;
 
         // Two Bone IK Constraint
@@ -31,14 +33,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         Vector3 m_LeftHandIKRotationOffset;
         float m_LeftHandIKWeight = 0f;
         Transform m_LeftHandIKTarget = null;
-        Transform m_LeftHandIKPosition = null;
+        //Transform m_LeftHandIKPosition = null;
 
         // Right hand
         GameObject m_HandRight = null;
         Vector3 m_RightHandIKRotationOffset;
         float m_RightHandIKWeight = 0f;
         Transform m_RightHandIKTarget = null;
-        Transform m_RightHandIKPosition = null;
+        //Transform m_RightHandIKPosition = null;
 
         // Gear
         GameObject m_GearLeftHand = null;
@@ -51,12 +53,15 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             get { return m_GearMuzzle; }
         }
 
-        public void Initialize(CharacterSwap characterSwap, Transform transform)
+        //public void Initialize(CharacterSwap characterSwap, Transform transform)
+        public void Initialize(CharacterGearManager gearManager, CharacterSwap characterSwap, Transform transform)
         {
-            m_View = characterSwap.CharacterModel.view;
-            m_LeftHandIKPosition = m_View.transform.Find("leftHandIK_position");
-            m_RightHandIKPosition = m_View.transform.Find("rightHandIK_position");
+            m_GearManager = gearManager;
 
+            m_View = characterSwap.CharacterModel.view;
+            //m_LeftHandIKPosition = m_View.transform.Find("leftHandIK_position");
+            //m_RightHandIKPosition = m_View.transform.Find("rightHandIK_position");
+ 
             // Left hand
             m_HandLeft = characterSwap.CharacterModel.handLeft;
             m_LeftHandIKConstraint = characterSwap.CharacterModel.leftHandIK.GetComponent<TwoBoneIKConstraint>();
@@ -126,14 +131,16 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 case IKPositionType.HandLeft:
                     m_LeftHandIKWeight = 1f;
                     // Change parent and reset local position and rotation according with parent.
-                    m_GearLeftHand.transform.SetParent(m_LeftHandIKPosition);
+                    //m_GearLeftHand.transform.SetParent(m_LeftHandIKPosition);
+                    m_GearLeftHand.transform.SetParent(m_GearManager.PositionGearLeftHand.transform);
                     m_GearLeftHand.transform.localPosition = Vector3.zero;
                     m_GearLeftHand.transform.localRotation = Quaternion.identity;
                     break;
                 case IKPositionType.HandRight:
                     m_RightHandIKWeight = 1f;
                     // Change parent and reset local position and rotation according with parent.
-                    m_GearRightHand.transform.SetParent(m_RightHandIKPosition);
+                    //m_GearRightHand.transform.SetParent(m_RightHandIKPosition);
+                    m_GearRightHand.transform.SetParent(m_GearManager.PositionGearRightHand.transform);
                     m_GearRightHand.transform.localPosition = Vector3.zero;
                     m_GearRightHand.transform.localRotation = Quaternion.identity;
                     break;

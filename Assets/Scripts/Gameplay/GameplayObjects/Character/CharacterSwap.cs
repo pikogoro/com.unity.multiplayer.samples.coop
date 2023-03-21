@@ -39,9 +39,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             public GameObject rightHandIK;
             public Vector3 rightHandIKRotationOffset;
 
+            /*
             // Gear
             public GameObject[] gearsLeftHand;
             public GameObject[] gearsRightHand;
+            */
 #endif  // P56
 
             public void SetFullActive(bool isActive)

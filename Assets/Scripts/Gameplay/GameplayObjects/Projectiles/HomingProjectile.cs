@@ -164,7 +164,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
             if (m_HomingStartTime < Time.fixedTime && m_TargetTransform != null)
             {
                 // Homing
-                transform.LookAt(m_TargetTransform.position + new Vector3(0f, 1f, 0f));
+                transform.LookAt(m_TargetTransform.position + new Vector3(0f, 1f, 0f));     // y is TBD
             }
         }
 

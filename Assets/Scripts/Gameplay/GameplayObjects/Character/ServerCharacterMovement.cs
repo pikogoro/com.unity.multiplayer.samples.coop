@@ -60,7 +60,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         Vector3 m_MovementDirection;
         Vector3 m_PreviousMovementDirection;
 
-        bool m_IsDoingAds = false;
+        bool m_IsADS = false;
         bool m_IsDashing = false;
         bool m_IsCrouching = false;
         bool m_PreviousIsCrouching;
@@ -194,23 +194,23 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
 #endif  // USE_THRUSTER
 
-            // For gear
-            if (0 < movement.GearNumChosen)
+            // For attack type
+            if (0 < movement.AttackType)
             {
-                m_CharLogic.CurrentGear.Value = movement.GearNumChosen;
+                m_CharLogic.CurrentGear.Value = movement.AttackType;
             }
 
             // For ADS
-            switch (movement.AdsState)
+            switch (movement.ADSState)
             {
                 case ActionMovement.State.IsChanged:
-                    m_IsDoingAds = !m_IsDoingAds; // toggle
+                    m_IsADS = !m_IsADS; // toggle
                     break;
                 case ActionMovement.State.Enabled:
-                    m_IsDoingAds = true;
+                    m_IsADS = true;
                     break;
                 case ActionMovement.State.Disabled:
-                    m_IsDoingAds = false;
+                    m_IsADS = false;
                     break;
                 default:
                     break;

@@ -24,8 +24,8 @@ namespace Unity.BossRoom.Gameplay.Actions
         public Quaternion Rotation;         // rotation of character's facing.
         public float RotationX;
         public float UpwardVelocity;        // upward velocity of character.
-        public int GearNumChosen;           // gear number chosen to do action (0: no change, 1-: gear number).
-        public State AdsState;              // ADS(aim down sight) state.
+        public int AttackType;              // attack type chosen (0: no change, 1-: attack type).
+        public State ADSState;              // ADS(aim down sight) state.
         public State DefenseState;          // defense state.
         public State DashState;             // dash state.
         public State CrouchingState;        // crouching state.
@@ -48,8 +48,8 @@ namespace Unity.BossRoom.Gameplay.Actions
             HasRotation = 1 << 1,
             HasRotationX = 1 << 2,
             HasUpwardVelocity = 1 << 3,
-            HasGearNumChosen = 1 << 4,
-            HasAdsState = 1 << 5,
+            HasAttackType = 1 << 4,
+            HasADSState = 1 << 5,
             HasDefenseState = 1 << 6,
             HasDashState = 1 << 7,
             HasCrouchingState = 1 << 8,
@@ -84,13 +84,13 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 flags |= PackFlags.HasUpwardVelocity;
             }
-            if (GearNumChosen != 0)
+            if (AttackType != 0)
             {
-                flags |= PackFlags.HasGearNumChosen;
+                flags |= PackFlags.HasAttackType;
             }
-            if (AdsState != State.Null)
+            if (ADSState != State.Null)
             {
-                flags |= PackFlags.HasAdsState;
+                flags |= PackFlags.HasADSState;
             }
             if (DefenseState != State.Null)
             {
@@ -134,13 +134,13 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 serializer.SerializeValue(ref UpwardVelocity);
             }
-            if ((flags & PackFlags.HasGearNumChosen) != 0)
+            if ((flags & PackFlags.HasAttackType) != 0)
             {
-                serializer.SerializeValue(ref GearNumChosen);
+                serializer.SerializeValue(ref AttackType);
             }
-            if ((flags & PackFlags.HasAdsState) != 0)
+            if ((flags & PackFlags.HasADSState) != 0)
             {
-                serializer.SerializeValue(ref AdsState);
+                serializer.SerializeValue(ref ADSState);
             }
             if ((flags & PackFlags.HasDefenseState) != 0)
             {
