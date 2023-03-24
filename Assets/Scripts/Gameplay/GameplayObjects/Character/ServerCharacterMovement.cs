@@ -140,6 +140,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             m_MovementState = MovementState.PathFollowing;
             m_NavPath.SetTargetPosition(position);
 #else   // !P56
+            // This is temporary movement state.
             m_MovementState = MovementState.Walking;
 
             if (ActionMovement.IsNull(movement.Position))
@@ -413,13 +414,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         private void PerformMovement()
         {
-            if (m_MovementState == MovementState.Idle)
 #if P56
+            if (m_MovementState == MovementState.Idle)
             {
                 m_IsDashing = false;
                 return;
             }
 #else   // P56
+            if (m_MovementState == MovementState.Idle)
                 return;
 #endif   // P56
 
@@ -460,8 +462,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 {
                     movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount);
 
+                    // For ADS
+                    if (m_IsADS)
+                    {
+                        movementVector /= 2f;
+                    }
                     // For dash
-                    if (m_IsDashing)
+                    else if (m_IsDashing)
                     {
                         // Change to local vector.
                         Vector3 localMovementVector = transform.InverseTransformVector(movementVector);
@@ -470,11 +477,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                         if (localMovementVector.z > 0.01f)
                         {
                             localMovementVector.z *= 2f;
+
+                            // Change movement state to "Dashing".
                             m_MovementState = MovementState.Dashing;
-                        }
-                        else
-                        {
-                            m_MovementState = MovementState.Walking;
                         }
 
                         // Reverse to gloval vector.
@@ -488,20 +493,34 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     movementVector = (tmpPosition - transform.position).normalized * desiredMovementAmount;
                 }
 
+                // For crouch
+                if (m_IsCrouching == true)
+                {
+                    // Disable crouching if character is on air or moving.
+                    if (m_IsGrounded == false || movementVector.magnitude > 0.01f)
+                    {
+                        m_IsCrouching = false;
+                    }
+                }
+
                 m_MovementDirection = transform.InverseTransformDirection(movementVector).normalized;
 #endif  // !P56
 
 #if !P56
                 // If we didn't move stop moving.
                 if (movementVector == Vector3.zero)
-#else   // !P56
-                // Stop moving.
-                if (movementVector == Vector3.zero && ActionMovement.IsNull(m_Rotation) && m_IsGrounded)
-#endif   // !P56
                 {
                     m_MovementState = MovementState.Idle;
                     return;
                 }
+#else   // !P56
+                // Stop moving.
+                if (movementVector == Vector3.zero && ActionMovement.IsNull(m_Rotation) && m_IsGrounded)
+                {
+                    m_MovementState = MovementState.Idle;
+                    return;
+                }
+#endif   // !P56
             }
 
 #if !P56
@@ -574,7 +593,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     m_IsGrounded = false;
                     m_UpwardVelocity += Physics.gravity.y * Time.fixedDeltaTime;
 
-                    // Trigger "rise" animation transition.
+                    // Trigger animation transition.
                     m_CharLogic.serverAnimationHandler.NetworkAnimator.SetTrigger("Rise");
                 }
                 else
@@ -598,7 +617,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     m_IsGrounded = true;
                     m_UpwardVelocity = 0f;
 
-                    // Trigger "Grounded" animation transition.
+                    // Trigger animation transition.
                     m_CharLogic.serverAnimationHandler.NetworkAnimator.SetTrigger("Grounded");
                 }
             }

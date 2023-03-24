@@ -240,12 +240,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
                 // Setup IK manager
                 m_IKManager = new ClientCharacterIKManager();
-                //m_IKManager.Initialize(m_CharacterSwapper, transform);
-                //m_IKManager.SetGearLeftHand(m_CharacterSwapper.CharacterModel.gearsLeftHand[0]);
-                //m_IKManager.SetGearRightHand(m_CharacterSwapper.CharacterModel.gearsRightHand[0]);
                 m_IKManager.Initialize(m_GearManager, m_CharacterSwapper, transform);
-                m_IKManager.SetGearLeftHand(m_GearManager.GearLeftHand);
-                m_IKManager.SetGearRightHand(m_GearManager.GearRightHand);
+                m_IKManager.SetGear(m_GearManager.GearLeftHand, m_GearManager.GearRightHand);
                 m_Muzzle = m_IKManager.GearMuzzle;
                 EnableIK();
 #endif  // !P56
@@ -394,39 +390,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 return;
             }
 
-            /*
-            GameObject[] gearsLeftHand = CharacterSwap.CharacterModel.gearsLeftHand;
-            GameObject[] gearsRightHand = CharacterSwap.CharacterModel.gearsRightHand;
-            GameObject gearLeftHandChosen = null;
-            GameObject gearRightHandChosen = null;
-
-            for (int i = 0; i < gearsLeftHand.Length; i++)
-            {
-                // Disable all gears.
-                gearsLeftHand[i].SetActive(false);
-                gearsRightHand[i].SetActive(false);
-
-                if (i + 1 == newValue)
-                {
-                    gearLeftHandChosen = gearsLeftHand[i];
-                    gearRightHandChosen = gearsRightHand[i];
-                }
-            }
-
-            // Enable only chosed gear.
-            gearLeftHandChosen.SetActive(true);
-            gearRightHandChosen.SetActive(true);
-
-            // Get muzzle transform from chosed gear.
-            m_IKManager.SetGearLeftHand(gearLeftHandChosen);
-            m_IKManager.SetGearRightHand(gearRightHandChosen);
-            m_Muzzle = m_IKManager.GearMuzzle;
-            */
-
-            //m_GearManager.SetCurrentGearSet(newValue, m_IKManager);
+            // Change current attack type
             m_GearManager.SetCurrentAttackType(newValue);
-            m_IKManager.SetGearLeftHand(m_GearManager.GearLeftHand);
-            m_IKManager.SetGearRightHand(m_GearManager.GearRightHand);
+            m_IKManager.SetGear(m_GearManager.GearLeftHand, m_GearManager.GearRightHand);
             m_Muzzle = m_IKManager.GearMuzzle;
             EnableIK();
         }
@@ -438,18 +404,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 return;
             }
 
-            m_IsDefending = newValue;
+            if (m_GearManager.IsDefendableLeft == false && m_GearManager.IsDefendableRight == false)
+            {
+                m_IsDefending = false;
+                return;
+            }
 
-            if (m_IsDefending == true)
-            {
-                m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
-                m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandRight);
-            }
-            else
-            {
-                m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
-                m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandRight);
-            }
+            m_IsDefending = newValue;
+            EnableIK();
         }
 
         void OnCrouchingStateChanged(bool previousValue, bool newValue)
@@ -457,6 +419,15 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             if (previousValue != newValue)
             {
                 m_IsCrouching = newValue;
+
+                if (m_IsCrouching == true)
+                {
+                    OurAnimator.SetTrigger("Crouch");
+                }
+                else
+                {
+                    OurAnimator.SetTrigger("StandUp");
+                }
             }
         }
 #endif  // P56
@@ -541,22 +512,49 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
             if (m_IKManager != null)
             {
-                if (m_IsDefending == true || m_GearManager.IsActiveGearLeftHand)
+                if (m_IsDefending == true)
                 {
-                    m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
-                }
-                else
-                {
-                    m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
-                }
+                    // Left hand
+                    if (m_GearManager.IsDefendableLeft == true)
+                    {
+                        m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+                    }
+                    else
+                    {
+                        m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+                    }
 
-                if (m_GearManager.IsActiveGearRightHand)
-                {
-                    m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+                    // Right hand
+                    if (m_GearManager.IsDefendableRight == true)
+                    {
+                        m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+                    }
+                    else
+                    {
+                        m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+                    }
                 }
                 else
                 {
-                    m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+                    // Left hand
+                    if (m_GearManager.IsActiveGearLeftHand)
+                    {
+                        m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+                    }
+                    else
+                    {
+                        m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
+                    }
+
+                    // Right hand
+                    if (m_GearManager.IsActiveGearRightHand)
+                    {
+                        m_IKManager.EnableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+                    }
+                    else
+                    {
+                        m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+                    }
                 }
             }
         }

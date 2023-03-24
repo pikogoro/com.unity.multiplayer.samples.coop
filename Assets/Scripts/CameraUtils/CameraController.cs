@@ -138,12 +138,6 @@ namespace Unity.BossRoom.CameraUtils
 
             m_Transposer = m_MainCamera.GetComponentInChildren<CinemachineTransposer>();
 
-            /*
-            if (m_MainCamera)
-            {
-                m_MainCamera.Follow = transform;
-            }
-            */
             ZoomReset();
 
             GameObject go = GameObject.Find("Reticle");
@@ -191,6 +185,7 @@ namespace Unity.BossRoom.CameraUtils
                     //m_ReticleTransform.position = m_ReticleOriginalPosition;
                     m_MainCamera.Follow = m_View.transform;
                     m_MainCamera.LookAt = null;
+                    m_Transposer.m_FollowOffset = new Vector3(0f, 0f, 0f);
                     m_Transposer.m_XDamping = 0f;
                     m_Transposer.m_YDamping = 0f;
                     m_Transposer.m_ZDamping = 0f;
@@ -218,6 +213,9 @@ namespace Unity.BossRoom.CameraUtils
                 m_Transposer.m_FollowOffset.z = -5f + Mathf.Abs(offsetZ);
                 targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
             }
+
+            // For crouching
+            m_View.transform.localPosition = transform.InverseTransformPoint(m_Eyes.transform.position);
 
             // Lerp of character's pitch.
             m_LerpedRotation = m_RotationLerper.LerpRotation(m_LerpedRotation, targetRotation);

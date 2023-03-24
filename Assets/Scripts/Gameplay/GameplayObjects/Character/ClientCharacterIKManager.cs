@@ -1,10 +1,3 @@
-using System;
-using Unity.BossRoom.CameraUtils;
-using Unity.BossRoom.Gameplay.UserInput;
-using Unity.BossRoom.Gameplay.Configuration;
-using Unity.BossRoom.Gameplay.Actions;
-using Unity.BossRoom.Utils;
-using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
 
@@ -33,14 +26,12 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         Vector3 m_LeftHandIKRotationOffset;
         float m_LeftHandIKWeight = 0f;
         Transform m_LeftHandIKTarget = null;
-        //Transform m_LeftHandIKPosition = null;
 
         // Right hand
         GameObject m_HandRight = null;
         Vector3 m_RightHandIKRotationOffset;
         float m_RightHandIKWeight = 0f;
         Transform m_RightHandIKTarget = null;
-        //Transform m_RightHandIKPosition = null;
 
         // Gear
         GameObject m_GearLeftHand = null;
@@ -48,6 +39,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         Transform m_GearLeftHandPosition = null;
         Transform m_GearRightHandPosition = null;
         Transform m_GearMuzzle = null;
+        bool m_TwoHanded = false;
         public Transform GearMuzzle
         {
             get { return m_GearMuzzle; }
@@ -58,9 +50,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         {
             m_GearManager = gearManager;
 
+            // View (camara)
             m_View = characterSwap.CharacterModel.view;
-            //m_LeftHandIKPosition = m_View.transform.Find("leftHandIK_position");
-            //m_RightHandIKPosition = m_View.transform.Find("rightHandIK_position");
  
             // Left hand
             m_HandLeft = characterSwap.CharacterModel.handLeft;
@@ -86,22 +77,46 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
         }
 
-        public void SetGearLeftHand(GameObject gear)
+        public void SetGear(GameObject gearLeftHand, GameObject gearRightHand)
         {
-            m_GearLeftHand = gear;
-            m_GearLeftHandPosition = m_GearLeftHand.transform.Find("foreend");
-            if (m_GearLeftHandPosition == null)
+            m_GearLeftHand = gearLeftHand;
+            m_GearRightHand = gearRightHand;
+
+            if (m_GearLeftHand != null)
             {
                 m_GearLeftHandPosition = m_GearLeftHand.transform.Find("grip");
+                m_GearMuzzle = m_GearLeftHand.transform.Find("muzzle");
             }
-            //m_GearMuzzle = m_GearLeftHand.transform.Find("muzzle");
-        }
+            else if (m_GearRightHand != null)
+            {
+                m_GearLeftHandPosition = m_GearRightHand.transform.Find("foreend");
+                if (m_GearLeftHandPosition != null)
+                {
+                    m_TwoHanded = true;
+                }
+                else
+                {
+                    m_TwoHanded = false;
+                }
+            }
 
-        public void SetGearRightHand(GameObject gear)
-        {
-            m_GearRightHand = gear;
-            m_GearRightHandPosition = m_GearRightHand.transform.Find("grip");
-            m_GearMuzzle = m_GearRightHand.transform.Find("muzzle");
+            if (m_GearRightHand != null)
+            {
+                m_GearRightHandPosition = m_GearRightHand.transform.Find("grip");
+                m_GearMuzzle = m_GearRightHand.transform.Find("muzzle");
+            }
+            else if (m_GearLeftHand != null)
+            {
+                m_GearRightHandPosition = m_GearLeftHand.transform.Find("foreend");
+                if (m_GearRightHandPosition != null)
+                {
+                    m_TwoHanded = true;
+                }
+                else
+                {
+                    m_TwoHanded = false;
+                }
+            }
         }
 
         public void OnUpdate(float rotaionX)
@@ -130,19 +145,31 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             {
                 case IKPositionType.HandLeft:
                     m_LeftHandIKWeight = 1f;
-                    // Change parent and reset local position and rotation according with parent.
-                    //m_GearLeftHand.transform.SetParent(m_LeftHandIKPosition);
-                    m_GearLeftHand.transform.SetParent(m_GearManager.PositionGearLeftHand.transform);
-                    m_GearLeftHand.transform.localPosition = Vector3.zero;
-                    m_GearLeftHand.transform.localRotation = Quaternion.identity;
+                    if (m_TwoHanded == true)
+                    {
+                        m_RightHandIKWeight = 1f;
+                    }
+                    if (m_GearLeftHand != null)
+                    {
+                        // Change parent and reset local position and rotation according with parent.
+                        m_GearLeftHand.transform.SetParent(m_GearManager.PositionGearLeftHand.transform);
+                        m_GearLeftHand.transform.localPosition = m_GearManager.PositionOffsetLeftHand;
+                        m_GearLeftHand.transform.localRotation = Quaternion.Euler(m_GearManager.RotationOffsetLeftHand);
+                    }
                     break;
                 case IKPositionType.HandRight:
                     m_RightHandIKWeight = 1f;
-                    // Change parent and reset local position and rotation according with parent.
-                    //m_GearRightHand.transform.SetParent(m_RightHandIKPosition);
-                    m_GearRightHand.transform.SetParent(m_GearManager.PositionGearRightHand.transform);
-                    m_GearRightHand.transform.localPosition = Vector3.zero;
-                    m_GearRightHand.transform.localRotation = Quaternion.identity;
+                    if (m_TwoHanded == true)
+                    {
+                        m_LeftHandIKWeight = 1f;
+                    }
+                    if (m_GearRightHand != null)
+                    {
+                        // Change parent and reset local position and rotation according with parent.
+                        m_GearRightHand.transform.SetParent(m_GearManager.PositionGearRightHand.transform);
+                        m_GearRightHand.transform.localPosition = m_GearManager.PositionOffsetRightHand;
+                        m_GearRightHand.transform.localRotation = Quaternion.Euler(m_GearManager.RotationOffsetRightHand);
+                    }
                     break;
             }
         }
@@ -153,17 +180,31 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             {
                 case IKPositionType.HandLeft:
                     m_LeftHandIKWeight = 0f;
-                    // Change parent and reset local position and rotation according with parent.
-                    m_GearLeftHand.transform.SetParent(m_HandLeft.transform);
-                    m_GearLeftHand.transform.localPosition = Vector3.zero;
-                    m_GearLeftHand.transform.localRotation = Quaternion.identity;
+                    if (m_TwoHanded == true)
+                    {
+                        m_RightHandIKWeight = 0f;
+                    }
+                    if (m_GearLeftHand != null)
+                    {
+                        // Change parent and reset local position and rotation according with parent.
+                        m_GearLeftHand.transform.SetParent(m_HandLeft.transform);
+                        m_GearLeftHand.transform.localPosition = Vector3.zero;
+                        m_GearLeftHand.transform.localRotation = Quaternion.identity;
+                    }
                     break;
                 case IKPositionType.HandRight:
                     m_RightHandIKWeight = 0f;
-                    // Change parent and reset local position and rotation according with parent.
-                    m_GearRightHand.transform.SetParent(m_HandRight.transform);
-                    m_GearRightHand.transform.localPosition = Vector3.zero;
-                    m_GearRightHand.transform.localRotation = Quaternion.identity;
+                    if (m_TwoHanded == true)
+                    {
+                        m_LeftHandIKWeight = 0f;
+                    }
+                    if (m_GearRightHand != null)
+                    {
+                        // Change parent and reset local position and rotation according with parent.
+                        m_GearRightHand.transform.SetParent(m_HandRight.transform);
+                        m_GearRightHand.transform.localPosition = Vector3.zero;
+                        m_GearRightHand.transform.localRotation = Quaternion.identity;
+                    }
                     break;
             }
         }
