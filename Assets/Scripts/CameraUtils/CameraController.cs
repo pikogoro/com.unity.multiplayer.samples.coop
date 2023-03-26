@@ -190,7 +190,7 @@ namespace Unity.BossRoom.CameraUtils
                     m_Transposer.m_YDamping = 0f;
                     m_Transposer.m_ZDamping = 0f;
                 }
-                m_Transposer.m_FollowOffset = transform.InverseTransformPoint(m_Eyes.transform.position) - m_View.transform.localPosition;
+                //m_Transposer.m_FollowOffset = transform.InverseTransformPoint(m_Eyes.transform.position) - m_View.transform.localPosition;
                 targetRotation = Quaternion.Euler(-m_RotationX, m_RotationY, 0f);
             }
             else
@@ -215,7 +215,7 @@ namespace Unity.BossRoom.CameraUtils
             }
 
             // For crouching
-            m_View.transform.localPosition = transform.InverseTransformPoint(m_Eyes.transform.position);
+            //m_View.transform.localPosition = transform.InverseTransformPoint(m_Eyes.transform.position);
 
             // Lerp of character's pitch.
             m_LerpedRotation = m_RotationLerper.LerpRotation(m_LerpedRotation, targetRotation);

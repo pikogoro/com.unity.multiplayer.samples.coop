@@ -101,7 +101,7 @@ namespace Unity.BossRoom.Gameplay.Actions
 
                 no.transform.position = parent.physicsWrapper.Transform.localToWorldMatrix.MultiplyPoint(m_Position);
 
-                no.GetComponent<HomingProjectile>().Initialize(parent.NetworkObjectId, projectileInfo, m_TargetTransform);
+                no.GetComponent<HomingProjectile>().Initialize(parent.NetworkObjectId, projectileInfo, m_TargetTransform, parent.IsNpc);
 
                 no.Spawn(true);
             }

@@ -62,8 +62,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
             m_BlockerMask = LayerMask.GetMask(new[] { "NPCs", "Ground", "Environment" });
             m_RaycastHitComparer = new RaycastHitComparer();
 
-            // Sort items by "range"
-            //m_AttackActions.Sort((a, b) => a.Config.Range.CompareTo(b.Config.Range));
+            // Sort attack by "range" (shorter -> longer)
+            m_AttackActions.Sort((a, b) => a.Config.Range.CompareTo(b.Config.Range));
 #endif  // P56
         }
 
@@ -117,10 +117,19 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
                 return;
             }
 
-#if P56
+#if !P56
+            // attack!
+            var attackData = new ActionRequestData
+            {
+                ActionID = m_CurAttackAction.ActionID,
+                TargetIds = new ulong[] { m_Foe.NetworkObjectId },
+                ShouldClose = true,
+                Direction = m_Brain.GetMyServerCharacter().physicsWrapper.Transform.forward
+            };
+#else   // !P56
             Vector3 origin = new Vector3(0f, 1.5f, 0f);
             Vector3 direction = m_Foe.transform.position - m_Brain.GetMyServerCharacter().physicsWrapper.Transform.position;
-            /*
+
             bool hit = false;
 
             Ray ray = new Ray(m_Brain.GetMyServerCharacter().physicsWrapper.Transform.position + origin, direction);
@@ -156,10 +165,15 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
 
             if (!hit)
             {
+                var actionData = new ActionRequestData
+                {
+                    ActionID = GameDataSource.Instance.GeneralChaseActionPrototype.ActionID,
+                    TargetIds = new ulong[] { m_Foe.NetworkObjectId },
+                    Amount = 2f   // baseAction.Config.Range
+                };
+                m_ServerActionPlayer.PlayAction(ref actionData);
                 return;
             }
-            */
-#endif  // P56
 
             // attack!
             var attackData = new ActionRequestData
@@ -167,13 +181,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
                 ActionID = m_CurAttackAction.ActionID,
                 TargetIds = new ulong[] { m_Foe.NetworkObjectId },
                 ShouldClose = true,
-#if !P56
-                Direction = m_Brain.GetMyServerCharacter().physicsWrapper.Transform.forward
-#else   // !P56
                 Position = origin,
                 Direction = direction
-#endif  // !P56
             };
+#endif  // P56
             m_ServerActionPlayer.PlayAction(ref attackData);
         }
 
@@ -206,9 +217,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
         /// <returns>Action to attack with, or null</returns>
         private Action ChooseAttack()
         {
-//#if !P56
+#if !P56
             // make a random choice
             int idx = Random.Range(0, m_AttackActions.Count);
+#else   // !P56
+            // choice the longest range attack.
+            int idx = m_AttackActions.Count - 1;
+#endif  // !P56
 
             // now iterate through our options to find one that's currently usable
             bool anyUsable;
@@ -231,54 +246,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
 
             // none of our actions are available now
             return null;
-
-/*
-#else   // !P56
-            List<Action> attackActions = new List<Action>();
-
-            float maxRangeSqr = float.MaxValue;
-
-            // Choose appropriate actions by "range"
-            float distanceSqr = (m_Brain.GetMyServerCharacter().physicsWrapper.Transform.position - m_Foe.transform.position).sqrMagnitude;
-            foreach (var attack in m_AttackActions)
-            {
-                float rangeSqr = Mathf.Pow(attack.Config.Range, 2f);
-                if (distanceSqr < rangeSqr && rangeSqr <= maxRangeSqr)
-                {
-                    maxRangeSqr = rangeSqr;
-                    attackActions.Add(attack);
-                }
-            }
-
-            // make a random choice
-            int idx = Random.Range(0, attackActions.Count);
-
-            // now iterate through our options to find one that's currently usable
-            bool anyUsable;
-            do
-            {
-                anyUsable = false;
-                foreach (var attack in attackActions)
-                {
-                    if (m_ServerActionPlayer.IsReuseTimeElapsed(attack.ActionID))
-                    {
-                        anyUsable = true;
-                        if (idx == 0)
-                        {
-                            attackActions.Clear();
-                            return attack;
-                        }
-                        --idx;
-                    }
-                }
-            } while (anyUsable);
-
-            attackActions.Clear();
-
-            // none of our actions are available now
-            return null;
-#endif  // !P56
-*/
         }
     }
 }

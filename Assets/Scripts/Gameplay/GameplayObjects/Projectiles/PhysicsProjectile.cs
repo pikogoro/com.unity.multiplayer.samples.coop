@@ -39,6 +39,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
         readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
         RaycastHitComparer m_RaycastHitComparer;
         Transform m_LauncherTransform;
+        bool m_IsFromNPC;
 #endif  // !P56
 
         /// <summary>
@@ -86,14 +87,18 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
 #if !P56
         public void Initialize(ulong creatorsNetworkObjectId, in ProjectileInfo projectileInfo)
         {
-#else   // !P56
-        public void Initialize(ulong creatorsNetworkObjectId, in ProjectileInfo projectileInfo, in Transform launcherTransform)
-        {
-            m_LauncherTransform = launcherTransform;
-#endif  // !P56
             m_SpawnerId = creatorsNetworkObjectId;
             m_ProjectileInfo = projectileInfo;
         }
+#else   // !P56
+        public void Initialize(ulong creatorsNetworkObjectId, in ProjectileInfo projectileInfo, in Transform launcherTransform, bool isFromNPC)
+        {
+            m_LauncherTransform = launcherTransform;
+            m_SpawnerId = creatorsNetworkObjectId;
+            m_ProjectileInfo = projectileInfo;
+            m_IsFromNPC = isFromNPC;
+        }
+#endif  // !P56
 
         public override void OnNetworkSpawn()
         {
@@ -283,8 +288,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 //if (k_CachedHit[i].collider.gameObject.layer == m_NpcLayer && !m_HitTargets.Contains(k_CachedHit[i].collider.gameObject))
                 if (!m_HitTargets.Contains(k_CachedHit[i].collider.gameObject))
                 {
-                    Debug.Log("k_CachedHit[i].point " + k_CachedHit[i].point);
-
                     m_HitTargets.Add(k_CachedHit[i].collider.gameObject);
 
                     if (m_HitTargets.Count >= m_ProjectileInfo.MaxVictims)
@@ -306,7 +309,21 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
 
                         if (k_CachedHit[i].transform.TryGetComponent(out IDamageable damageable))
                         {
-                            damageable.ReceiveHP(spawnerObj, -m_ProjectileInfo.Damage);
+                            // Character is damaged only if the attack is from enemies.
+                            if (m_IsFromNPC == true)
+                            {
+                                if (k_CachedHit[i].collider.gameObject.layer != m_NpcLayer)
+                                {
+                                    damageable.ReceiveHP(spawnerObj, -m_ProjectileInfo.Damage);
+                                }
+                            }
+                            else
+                            {
+                                if (k_CachedHit[i].collider.gameObject.layer == m_NpcLayer)
+                                {
+                                    damageable.ReceiveHP(spawnerObj, -m_ProjectileInfo.Damage);
+                                }
+                            }
 
                             // Knockback
                             ServerCharacter clientCharacter = k_CachedHit[i].transform.GetComponent<ServerCharacter>();

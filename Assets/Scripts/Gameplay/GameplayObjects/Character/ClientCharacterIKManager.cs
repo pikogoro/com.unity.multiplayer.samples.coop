@@ -16,6 +16,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         CharacterGearManager m_GearManager;
 
         GameObject m_View = null;
+        GameObject m_Eyes = null;
 
         // Two Bone IK Constraint
         TwoBoneIKConstraint m_LeftHandIKConstraint;
@@ -52,6 +53,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
             // View (camara)
             m_View = characterSwap.CharacterModel.view;
+
+            // Eyes
+            m_Eyes = characterSwap.CharacterModel.eyes;
  
             // Left hand
             m_HandLeft = characterSwap.CharacterModel.handLeft;
@@ -121,6 +125,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         public void OnUpdate(float rotaionX)
         {
+            // For crouching (change view position during crouching).
+            //m_View.transform.localPosition = transform.InverseTransformPoint(m_Eyes.transform.position);
+            m_View.transform.position = m_Eyes.transform.position;
+
             // Update IK weight.
             m_LeftHandIKConstraint.weight = m_LeftHandIKWeight;
             m_RightHandIKConstraint.weight = m_RightHandIKWeight;
