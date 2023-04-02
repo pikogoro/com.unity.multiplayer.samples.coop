@@ -62,7 +62,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
             m_BlockerMask = LayerMask.GetMask(new[] { "NPCs", "Ground", "Environment" });
             m_RaycastHitComparer = new RaycastHitComparer();
 
-            // Sort attack by "range" (shorter -> longer)
+            // Sort attack by "range" (shorter to longer)
             m_AttackActions.Sort((a, b) => a.Config.Range.CompareTo(b.Config.Range));
 #endif  // P56
         }
@@ -127,7 +127,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
                 Direction = m_Brain.GetMyServerCharacter().physicsWrapper.Transform.forward
             };
 #else   // !P56
-            Vector3 origin = new Vector3(0f, 1.5f, 0f);
+            Vector3 origin = new Vector3(0f, 1.5f, 0f);     // TBD
             Vector3 direction = m_Foe.transform.position - m_Brain.GetMyServerCharacter().physicsWrapper.Transform.position;
 
             bool hit = false;
@@ -165,12 +165,21 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
 
             if (!hit)
             {
+                // Set distance little bit closer to target.
+                float distance = (m_Brain.GetMyServerCharacter().physicsWrapper.Transform.position - m_Foe.transform.position).magnitude - 2f;
+                if (distance < 2f)
+                {
+                    distance = 2f;
+                }
+
+                // charge!
                 var actionData = new ActionRequestData
                 {
                     ActionID = GameDataSource.Instance.GeneralChaseActionPrototype.ActionID,
                     TargetIds = new ulong[] { m_Foe.NetworkObjectId },
-                    Amount = 2f   // baseAction.Config.Range
+                    Amount = distance,
                 };
+                m_ServerActionPlayer.ClearActions(true);   // clear all actions once.
                 m_ServerActionPlayer.PlayAction(ref actionData);
                 return;
             }
@@ -220,10 +229,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
 #if !P56
             // make a random choice
             int idx = Random.Range(0, m_AttackActions.Count);
-#else   // !P56
-            // choice the longest range attack.
-            int idx = m_AttackActions.Count - 1;
-#endif  // !P56
 
             // now iterate through our options to find one that's currently usable
             bool anyUsable;
@@ -246,6 +251,48 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
 
             // none of our actions are available now
             return null;
+#else   // !P56
+            float distanceSqr = (m_Brain.GetMyServerCharacter().physicsWrapper.Transform.position - m_Foe.transform.position).sqrMagnitude;
+            int idxMax = m_AttackActions.Count - 1;
+            int idxMin = 0;
+
+            // narrow down candidates of attack action by range.
+            foreach (Action attack in m_AttackActions)
+            {
+                float rangeSqr = Mathf.Pow(attack.Config.Range, 2f);
+                if (distanceSqr < rangeSqr)
+                {
+                    idxMax = m_AttackActions.IndexOf(attack);
+                }
+                else if (rangeSqr < distanceSqr)
+                {
+                    if (idxMin < idxMax)
+                    {
+                        idxMin = m_AttackActions.IndexOf(attack) + 1;
+                    }
+                }
+            }
+
+            // make a random choice appropriate range
+            int idx = Random.Range(idxMin, idxMax);
+
+            // now iterate through our options to find one that's currently usable
+            for (int i = idxMin; i <= idxMax; i++)
+            {
+                Action attack = m_AttackActions[idx++];
+                if (idx > idxMax)
+                {
+                    idx = idxMin;
+                }
+                if (m_ServerActionPlayer.IsReuseTimeElapsed(attack.ActionID))
+                {
+                    return attack;
+                }
+            }
+
+            // none of our actions are available now
+            return null;
+#endif  // !P56
         }
     }
 }
