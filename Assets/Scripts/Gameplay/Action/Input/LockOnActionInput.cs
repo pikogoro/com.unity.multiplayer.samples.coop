@@ -95,6 +95,7 @@ namespace Unity.BossRoom.Gameplay.Actions
             }
         }
 
+        /*
         private void Update()
         {
             // Launch
@@ -102,6 +103,12 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 m_IsMouseButtonUp = true;
             }
+        }
+        */
+
+        public override void OnReleaseKey()
+        {
+            m_IsMouseButtonUp = true;
         }
 
         void FixedUpdate()

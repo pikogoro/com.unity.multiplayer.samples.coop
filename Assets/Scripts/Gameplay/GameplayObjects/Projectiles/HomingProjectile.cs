@@ -80,6 +80,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
 
         bool m_IsFromNPC;
 
+        Vector3 m_DeadPoint;
+
         /// <summary>
         /// Set everything up based on provided projectile information.
         /// (Note that this is called before OnNetworkSpawn(), so don't try to do any network stuff here.)
@@ -164,6 +166,12 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
             var displacement = transform.forward * (m_ProjectileInfo.Speed_m_s * Time.fixedDeltaTime);
             transform.position += displacement;
 
+            if (m_IsDead)
+            {
+                m_ProjectileInfo.Speed_m_s = 0f;
+                transform.position = m_DeadPoint;
+            }
+
             if (m_HomingStartTime < Time.fixedTime && m_TargetTransform != null)
             {
                 // Homing
@@ -216,6 +224,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                     m_ProjectileInfo.Speed_m_s = 0f;
                     m_IsDead = true;
                     m_DestroyAtSec = Time.fixedTime + k_WallLingerSec;
+                    m_DeadPoint = k_CachedHit[i].point;
                     return;
                 }
 
@@ -228,6 +237,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                         // we've hit all the enemies we're allowed to! So we're done
                         m_DestroyAtSec = Time.fixedTime + k_EnemyLingerSec;
                         m_IsDead = true;
+                        m_DeadPoint = k_CachedHit[i].point;
                     }
 
                     //all NPC layer entities should have one of these.

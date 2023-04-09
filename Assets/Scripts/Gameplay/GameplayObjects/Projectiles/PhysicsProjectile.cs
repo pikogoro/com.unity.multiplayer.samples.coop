@@ -36,10 +36,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
 #if !P56
         Collider[] m_CollisionCache = new Collider[k_MaxCollisions];
 #else   // !P56
-        readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
+        readonly RaycastHit[] k_CachedHit = new RaycastHit[k_MaxCollisions];
         RaycastHitComparer m_RaycastHitComparer;
         Transform m_LauncherTransform;
         bool m_IsFromNPC;
+        Vector3 m_DeadPoint;
 #endif  // !P56
 
         /// <summary>
@@ -69,6 +70,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
         [SerializeField]
         [Tooltip("Explosion prefab used when projectile hits enemy. This should have a fixed duration.")]
         SpecialFXGraphic m_OnHitParticlePrefab;
+
+#if P56
+        [SerializeField]
+        SpecialFXGraphic m_OnImpactParticlePrefab;
+#endif  // P56
 
         [SerializeField]
         TrailRenderer m_TrailRenderer;
@@ -159,7 +165,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 return; //don't do anything before OnNetworkSpawn has run.
             }
 
+#if !P56
             if (m_DestroyAtSec < Time.fixedTime)
+#else   // !P56
+            if (m_DestroyAtSec < Time.fixedTime || m_IsDead)
+#endif  // !P56
             {
                 // Time to return to the pool from whence it came.
                 var networkObject = gameObject.GetComponent<NetworkObject>();
@@ -185,6 +195,13 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
             if (m_IsDead)
             {
                 m_ProjectileInfo.Speed_m_s = 0f;
+                transform.position = m_DeadPoint;
+
+                // show an impact graphic
+                if (m_OnImpactParticlePrefab != null)
+                {
+                    Instantiate(m_OnImpactParticlePrefab.gameObject, transform.position, transform.rotation);
+                }
             }
 #endif  // P56
         }
@@ -277,6 +294,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                     m_ProjectileInfo.Speed_m_s = k_CachedHit[i].distance / distance;
                     m_IsDead = true;
                     m_DestroyAtSec = Time.fixedTime + k_WallLingerSec;
+                    m_DeadPoint = k_CachedHit[i].point;
                     return;
                 }
 
@@ -295,6 +313,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                         // we've hit all the enemies we're allowed to! So we're done
                         m_DestroyAtSec = Time.fixedTime + k_EnemyLingerSec;
                         m_IsDead = true;
+                        m_DeadPoint = k_CachedHit[i].point;
                     }
 
                     //all NPC layer entities should have one of these.

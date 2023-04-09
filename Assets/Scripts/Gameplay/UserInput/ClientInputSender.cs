@@ -881,7 +881,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #else   // !P56
 #if !OVR
                     resultData.Position = m_ClientCharacter.MuzzleLocalPosition;
-                    resultData.Direction = m_CameraController.AimPosition - m_ClientCharacter.MuzzlePosition;
+                    //resultData.Direction = m_CameraController.AimPosition - m_ClientCharacter.MuzzlePosition;
+                    resultData.Direction = m_ClientCharacter.GetAimedPoint() - m_ClientCharacter.MuzzlePosition;
 #else   // !OVR
                     resultData.Direction = m_RHandTransform.forward.normalized;
 #endif  // !OVR

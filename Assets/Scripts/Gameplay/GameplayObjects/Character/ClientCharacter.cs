@@ -6,6 +6,9 @@ using Unity.BossRoom.Gameplay.Actions;
 using Unity.BossRoom.Utils;
 using Unity.Netcode;
 using UnityEngine;
+#if P56
+using System.Collections.Generic;
+#endif  // P56
 
 namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 {
@@ -94,6 +97,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         {
             get { return transform.worldToLocalMatrix.MultiplyPoint(m_Muzzle.position); } // world position -> local position
         }
+
+        // For Aiming
+        const float k_AimingRaycastDistance = 1000f;
+        readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
+        LayerMask m_AimingLayerMask;
+        LayerMask m_TargetLayerMask;
+        RaycastHitComparer m_RaycastHitComparer;
+        Transform m_ReticleTransform = null;
 
         // For view rotation lerp
         RotationLerper m_RotationXLerper;
@@ -227,6 +238,17 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                         inputSender.ClientMoveEvent += OnMoveInput;
 #if P56
                         inputSender.ClientCharacter = this;
+
+                        // Aim
+                        m_AimingLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Environment", "Default", "Ground" });
+                        //m_TargetLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs" });
+                        m_TargetLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Environment", "Default", "Ground" });
+                        m_RaycastHitComparer = new RaycastHitComparer();
+                        GameObject go = GameObject.Find("Reticle");
+                        if (go != null)
+                        {
+                            m_ReticleTransform = go.GetComponent<RectTransform>();
+                        }
 #endif  // P56
                     }
                 }
@@ -565,6 +587,51 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             {
                 m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandLeft);
                 m_IKManager.DisableIK(ClientCharacterIKManager.IKPositionType.HandRight);
+            }
+        }
+
+        public Vector3 GetAimedPoint()
+        {
+            Ray ray = Camera.main.ScreenPointToRay(m_ReticleTransform.position);
+            Vector3 point = ray.origin + ray.direction * k_AimingRaycastDistance;
+
+            int hits = Physics.RaycastNonAlloc(ray,
+                k_CachedHit,
+                k_AimingRaycastDistance,
+                m_AimingLayerMask);
+            if (hits > 0)
+            {
+                if (hits > 1)
+                {
+                    // sort hits by distance
+                    Array.Sort(k_CachedHit, 0, hits, m_RaycastHitComparer);
+                }
+
+                for (int i = 0; i < hits; i++)
+                {
+                    if (k_CachedHit[i].collider.gameObject.name != "PlayerAvatar0") // except self
+                    {
+                        int layerTest = 1 << k_CachedHit[i].collider.gameObject.layer;
+                        if ((layerTest & m_TargetLayerMask) != 0)
+                        {
+                            if (k_CachedHit[i].distance > 3f)
+                            {
+                                point = k_CachedHit[i].point;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            return point;
+        }
+
+        public class RaycastHitComparer : IComparer<RaycastHit>
+        {
+            public int Compare(RaycastHit x, RaycastHit y)
+            {
+                return x.distance.CompareTo(y.distance);
             }
         }
 #endif  // P56

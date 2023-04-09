@@ -3,6 +3,9 @@ using Unity.BossRoom.Gameplay.GameplayObjects;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using UnityEngine;
 using UnityEngine.Pool;
+#if P56
+using Unity.Netcode;
+#endif  // P56
 
 namespace Unity.BossRoom.Gameplay.Actions
 {
@@ -227,11 +230,42 @@ namespace Unity.BossRoom.Gameplay.Actions
 
             if (baseAction.Data.ShouldClose && baseAction.Data.TargetIds != null)
             {
+/* May be not needed...
+#if P56
+                // Get target transfrom.
+                NetworkObject target = NetworkManager.Singleton.SpawnManager.SpawnedObjects[baseAction.Data.TargetIds[0]];
+                Transform targetTransform;
+
+                if (PhysicsWrapper.TryGetPhysicsWrapper(baseAction.Data.TargetIds[0], out var physicsWrapper))
+                {
+                    targetTransform = physicsWrapper.Transform;
+                }
+                else
+                {
+                    targetTransform = target.transform;
+                }
+
+                // Set distance little bit closer to target.
+                float distance = (m_ServerCharacter.transform.position - targetTransform.position).magnitude - 2f;
+                if (distance < 2f)
+                {
+                    distance = 2f;
+                }
+#endif  // P56
+*/
                 ActionRequestData data = new ActionRequestData
                 {
                     ActionID = GameDataSource.Instance.GeneralChaseActionPrototype.ActionID,
                     TargetIds = baseAction.Data.TargetIds,
+/* May be not needed...
+#if !P56
+*/
                     Amount = baseAction.Config.Range
+/* May be not needed...
+#else   // !P56
+                    Amount = distance
+#endif  // !P56
+*/
                 };
                 baseAction.Data.ShouldClose = false; //you only get to do this once!
                 Action chaseAction = ActionFactory.CreateActionFromData(ref data);
