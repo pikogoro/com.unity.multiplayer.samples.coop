@@ -1,3 +1,5 @@
+//#define FORCE_NAVMESH
+
 using System;
 using Unity.BossRoom.Gameplay.Actions;
 using Unity.BossRoom.Gameplay.Configuration;
@@ -114,6 +116,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
         PhysicsWrapper m_PhysicsWrapper;
 
 #if P56
+        ClientCharacter m_ClientCharacter;
+        public ClientCharacter ClientCharacter
+        {
+            set { m_ClientCharacter = value; }
+        }
+
+        // For movement
         Joystick m_Joystick;
         bool m_IsMouseDown = false;
         Vector3 m_MouseDownPosition = Vector3.zero;
@@ -122,13 +131,33 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if UNITY_ANDROID
         int m_TouchFingerId = -1;
 #endif
+
+        // For RTT
         NetworkStats m_NetworkStats = null;
 
         // For jump
-        float m_UpwardPower = 8f;
+        float m_UpwardPower = 4f;
         float m_UpwardVelocity = 0f;
         bool m_JumpStateChanged = false;
         const float k_GroundRaycastDistance = 100f;
+
+        // For ADS
+        bool m_IsADS = false;
+        bool m_IsDownMouseButton1 = false;
+        bool m_PreviousIsADS;
+
+        // For defense
+        bool m_IsDownKeyCodeE = false;
+        bool m_IsChangedDefenseState = false;
+        bool m_IsDefending = false;
+        bool m_PreviousIsDefending;
+
+        // For dash
+        bool m_DoDash = false;
+
+        // For crouching
+        bool m_IsDownKeyCodeC = false;
+        bool m_IsChangedCrouchingState = false;
 
         // For rotation
         float m_SensitivityMouseX = 5f;
@@ -144,9 +173,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
         RotationState m_RotationState = RotationState.Idle;
 
         // For current action selection
-        int m_SelectedAction = 1;
-        const int k_MinAction = 1;
-        const int k_MaxAction = 7;
+        int m_CurrentAttackType = 1;
+        int m_ChosenAttackType = 1;
+        const int k_MinAttackType = 1;
+        const int k_MaxAttackType = 3;
+
+        PositionUtil m_PositionUtil;
 #if OVR
         bool m_IsMoving = false;
         float m_BaseRotationY = 0f;
@@ -154,6 +186,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
         Transform m_RHandTransform = null;
         bool m_Rotated = false;
 #endif  // OVR
+
+        String m_DebugMsg;
+        public String DebugMsg
+        {
+            set { m_DebugMsg = value; }
+        }
 #endif  // P56
         public ActionState actionState1 { get; private set; }
 
@@ -202,6 +240,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
             m_ActionLayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Ground" });
 
             m_RaycastHitComparer = new RaycastHitComparer();
+
+#if P56
+            m_PositionUtil = new PositionUtil();
+#endif  // P56
         }
 
         public override void OnNetworkDespawn()
@@ -250,7 +292,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
         void Start()
         {
             m_CameraController = GetComponentInChildren<CameraController>();
-            m_CameraController.BoneHead = GetComponentInChildren<CharacterSwap>().BoneHead;
+            CharacterSwap characterSwap = GetComponentInChildren<CharacterSwap>();
+            m_CameraController.Head = characterSwap.CharacterModel.head;
+            m_CameraController.Eyes = characterSwap.CharacterModel.eyes;
+            m_CameraController.View = characterSwap.CharacterModel.view;
 
             GameObject joystick = GameObject.Find("Joystick");
 #if UNITY_STANDALONE || OVR
@@ -283,31 +328,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
             ActionInputEvent?.Invoke(action);
             m_ServerCharacter.RecvDoActionServerRPC(action);
         }
-
-#if P56
-        /// <summary>
-        /// Get ground position by using raycast.
-        /// </summary>
-        private Vector3 GetGroundPosition(Vector3 position)
-        {
-            Vector3 groundPosition = Vector3.zero;
-            var ray = new Ray(position, Vector3.down);
-            var groundHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_GroundRaycastDistance, m_GroundLayerMask);
-
-            if (groundHits > 0)
-            {
-                if (groundHits > 1)
-                {
-                    // sort hits by distance
-                    Array.Sort(k_CachedHit, 0, groundHits, m_RaycastHitComparer);
-                }
-
-                groundPosition = k_CachedHit[0].point;
-            }
-
-            return groundPosition;
-        }
-#endif  // P56
 
         void FixedUpdate()
         {
@@ -395,20 +415,22 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                 // Calculate rotation X.
                 float rotationX = m_LastRotationX + pitch;
-                if (rotationX > 90f)
+                if (rotationX >= 90f)
                 {
-                    rotationX = 90f;
+                    rotationX = 89f;
                 }
-                else if (rotationX < -90)
+                else if (rotationX <= -90)
                 {
-                    rotationX = -90f;
+                    rotationX = -89f;
                 }
 
                 // Calculate otation Y.
                 float rotationY = m_LastRotationY + yaw;
-                float rotationDelta = Math.Abs(rotationY - m_LastSentRotationY);
+                float rotationDeltaX = Math.Abs(rotationX - m_LastRotationX);
+                float rotationDeltaY = Math.Abs(rotationY - m_LastSentRotationY);
                 rotation = Quaternion.Euler(0f, rotationY, 0f);
-                if (rotationDelta > 0f)
+                //if (rotationDeltaX > 1f || rotationDeltaY > 1f)
+                if (rotationDeltaX > 0f || rotationDeltaY > 0f)
                 {
                     // Start rotation.
                     m_RotationState = RotationState.Rotating;
@@ -428,7 +450,44 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
 #endif  // UNITY_STANDALONE
 
-            if (m_MoveRequest || (m_RotationState != RotationState.Idle) || m_JumpStateChanged)
+            bool characterStateChanged = false;
+
+            // For gear
+            if (m_CurrentAttackType != m_ChosenAttackType)
+            {
+                characterStateChanged = true;
+            }
+
+            // For ads
+            if (m_PreviousIsADS != m_IsADS)
+            {
+                characterStateChanged = true;
+            }
+
+            // For defense
+            if (m_IsChangedDefenseState == true)
+            {
+                characterStateChanged = true;
+            }
+
+            if (m_PreviousIsDefending != m_IsDefending)
+            {
+                characterStateChanged = true;
+            }
+
+            // For dash
+            if (m_DoDash == true)
+            {
+                characterStateChanged = true;
+            }
+
+            // For crouching
+            if (m_IsChangedCrouchingState)
+            {
+                characterStateChanged = true;
+            }
+
+            if (m_MoveRequest || (m_RotationState != RotationState.Idle) || m_UpwardVelocity != 0 || characterStateChanged == true)
             {
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
@@ -446,12 +505,17 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
                     else
                     {
-                        float e = 1f;
+                        // Prediction coefficient
+                        float pc = 1f;
                         if (!IsHost)
                         {
-                            e = m_NetworkStats.RTT / Time.fixedDeltaTime;
+                            // Character' movement prediction for remote client.
+                            pc = m_NetworkStats.RTT / Time.fixedDeltaTime;
                         }
-                        movement.Position = transform.position + transform.forward * m_Joystick.Vertical * e + transform.right * m_Joystick.Horizontal * e;
+
+                        // Calculate next movement position
+                        movement.Position = transform.position +
+                            transform.forward * m_Joystick.Vertical * pc + transform.right * m_Joystick.Horizontal * pc;
                         estimatedPosition = movement.Position;
 #if OVR
                         m_IsMoving = true;
@@ -549,18 +613,27 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     //    movement.Rotation = ActionMovement.RotationNull;
                     //}
 
-                    Vector3 groundPosition = GetGroundPosition(estimatedPosition + new Vector3(0f, 3f, 0f));
+                    //Vector3 groundPosition = m_PositioningUtil.GetGroundPosition(estimatedPosition + new Vector3(0f, 3f, 0f));    // [TBD] top position is temporary.
+                    //Vector3 groundPosition = m_PositioningUtil.GetGroundPosition(estimatedPosition);    // [TBD] top position is temporary.
+                    Vector3 groundPosition = estimatedPosition;
 
                     // verify point is indeed on navmesh surface
+#if FORCE_NAVMESH
                     if (NavMesh.SamplePosition(groundPosition,
                             out var hit,
                             k_MaxNavMeshDistance,
                             NavMesh.AllAreas))
                     {
+#endif  // FORCE_NAVMESH
+                    {
                         if (!ActionMovement.IsNull(movement.Position))
                         {
                             // If position is not null, move and rotate character.
+#if FORCE_NAVMESH
                             movement.Position = hit.position;
+#else   // FORCE_NAVMESH
+                            movement.Position = groundPosition;
+#endif  // FORCE_NAVMESH
                             movement.Rotation = rotation;
                         }
                         else
@@ -580,15 +653,69 @@ namespace Unity.BossRoom.Gameplay.UserInput
                             m_MoveRequest = false;
                         }
 
+                        movement.RotationX = m_LastRotationX;
+
                         // Set upward velocity and reset jump state.
                         movement.UpwardVelocity = m_UpwardVelocity;
-                        m_JumpStateChanged = false;
+
+                        // For gear
+                        if (m_CurrentAttackType!= m_ChosenAttackType)
+                        {
+                            if (1 <= m_ChosenAttackType && m_ChosenAttackType <= 3)
+                            {
+                                m_CurrentAttackType = m_ChosenAttackType;
+                                movement.AttackType = m_CurrentAttackType;
+                            }
+                        }
+
+                        // For ADS
+                        if (m_PreviousIsADS != m_IsADS)
+                        {
+                            if (m_IsADS)
+                            {
+                                movement.ADSState = ActionMovement.State.Enabled;
+                            }
+                            else
+                            {
+                                movement.ADSState = ActionMovement.State.Disabled;
+                            }
+                            m_PreviousIsADS = m_IsADS;
+                        }
+
+                        // For defense
+                        if (m_IsChangedDefenseState)
+                        {
+                            movement.DefenseState = ActionMovement.State.IsChanged;
+                            m_IsChangedDefenseState = false;
+                        }
+
+                        if (m_PreviousIsDefending != m_IsDefending)
+                        {
+                            if (m_IsDefending)
+                            {
+                                movement.DefenseState = ActionMovement.State.Enabled;
+                            }
+                            else
+                            {
+                                movement.DefenseState = ActionMovement.State.Disabled;
+                            }
+                            m_PreviousIsDefending = m_IsDefending;
+                        }
+
+                        // For dash
+                        if (m_DoDash)
+                        {
+                            movement.DashState = ActionMovement.State.Enabled;
+                        }
+
+                        // For crouching
+                        if (m_IsChangedCrouchingState)
+                        {
+                            movement.CrouchingState = ActionMovement.State.IsChanged;
+                            m_IsChangedCrouchingState = false;
+                        }
 
                         m_ServerCharacter.SendCharacterInputServerRpc(movement);
-
-                        //Send our client only click request
-                        ClientMoveEvent?.Invoke(hit.position);
-
 #if !OVR
                         m_LastSentRotationY = m_LastRotationY;
 #endif  // !OVR
@@ -599,6 +726,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
 
             // Update rotation of camera.
+            m_ClientCharacter.RotationX = m_LastRotationX;
             m_CameraController.RotationX = m_LastRotationX;
             m_CameraController.RotationY = m_LastRotationY;
 #endif  // !P56
@@ -629,23 +757,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 int numHits = 0;
                 if (triggerStyle == SkillTriggerStyle.MouseClick)
                 {
-#if !P56 || !OVR
                     var ray = m_MainCamera.ScreenPointToRay(UnityEngine.Input.mousePosition);
-#else   // !P56 || !OVR
-                    var ray = new Ray(m_RHandTransform.position, m_RHandTransform.forward);
-#endif  // !P56 || !OVR
                     numHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_MouseInputRaycastDistance, m_ActionLayerMask);
                 }
 
                 int networkedHitIndex = -1;
-#if P56
-                // Choose the closest object. 
-                if (numHits > 1)
-                {
-                    // Sort hits by distance.
-                    Array.Sort(k_CachedHit, 0, numHits, m_RaycastHitComparer);
-                }
-#endif  // P56
                 for (int i = 0; i < numHits; i++)
                 {
                     if (k_CachedHit[i].transform.GetComponentInParent<NetworkObject>())
@@ -672,13 +788,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 // in the desired direction. For others, like mage's bolts, this will fire a "miss" projectile at the spot clicked on.)
 
                 var data = new ActionRequestData();
-#if !P56
                 PopulateSkillRequest(k_CachedHit[0].point, actionID, ref data);
-#else   // !P56
-                // If target is nothing, set direction to the character's facing.
-                PopulateSkillRequest(transform.position + transform.forward, actionID, ref data, false);
-#endif  // !P56
-
                 SendInput(data);
             }
         }
@@ -737,11 +847,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             // record our target in case this action uses that info (non-targeted attacks will ignore this)
             resultData.ActionID = actionID;
             resultData.TargetIds = new ulong[] { targetNetObj.NetworkObjectId };
-#if !P56
             PopulateSkillRequest(targetHitPoint, actionID, ref resultData);
-#else   // !P56
-            PopulateSkillRequest(targetHitPoint, actionID, ref resultData, true);
-#endif  // !P56
             return true;
         }
 
@@ -751,11 +857,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
         /// <param name="hitPoint">The point in world space where the click ray hit the target.</param>
         /// <param name="actionID">The action to perform (will be stamped on the resultData)</param>
         /// <param name="resultData">The ActionRequestData to be filled out with additional information.</param>
-#if !P56
         void PopulateSkillRequest(Vector3 hitPoint, ActionID actionID, ref ActionRequestData resultData)
-#else   // !P56
-        void PopulateSkillRequest(Vector3 hitPoint, ActionID actionID, ref ActionRequestData resultData, bool existsTarget)
-#endif  // !P56
         {
             resultData.ActionID = actionID;
             var actionConfig = GameDataSource.Instance.GetActionPrototypeByID(actionID).Config;
@@ -777,30 +879,22 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if !P56
                     resultData.Direction = direction;
 #else   // !P56
-                    if (existsTarget)
-                    {
-                        resultData.Direction = direction;
-                    }
-                    else
-                    {
 #if !OVR
-                        if (m_CameraController.IsFPSView)
-                        {
-                            resultData.Direction = m_MainCamera.transform.forward.normalized;
-                        }
-                        else
-                        {
-                            resultData.Direction = Quaternion.Euler(15f, 0f, 0f) * m_MainCamera.transform.forward.normalized;
-                        }
+                    resultData.Position = m_ClientCharacter.MuzzleLocalPosition;
+                    //resultData.Direction = m_CameraController.AimPosition - m_ClientCharacter.MuzzlePosition;
+                    resultData.Direction = m_ClientCharacter.GetAimedPoint() - m_ClientCharacter.MuzzlePosition;
 #else   // !OVR
-                        resultData.Direction = m_RHandTransform.forward.normalized;
+                    resultData.Direction = m_RHandTransform.forward.normalized;
 #endif  // !OVR
-                    }
 #endif  // !P56
                     resultData.ShouldClose = false; //why? Because you could be lining up a shot, hoping to hit other people between you and your target. Moving you would be quite invasive.
                     return;
                 case ActionLogic.Melee:
+#if P56
+                    resultData.Direction = Vector3.zero;    // character's forward diraction
+#else   // P56
                     resultData.Direction = direction;
+#endif  // P56
                     return;
                 case ActionLogic.Target:
                     resultData.ShouldClose = false;
@@ -843,6 +937,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         void Update()
         {
+#if !P56
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
                 RequestAction(actionState1.actionID, SkillTriggerStyle.Keyboard);
@@ -867,6 +962,20 @@ namespace Unity.BossRoom.Gameplay.UserInput
             {
                 RequestAction(actionState3.actionID, SkillTriggerStyle.KeyboardRelease);
             }
+#else   // !P56
+            if (Input.GetKeyDown(KeyCode.Alpha1))
+            {
+                m_ChosenAttackType = 1;
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha2))
+            {
+                m_ChosenAttackType = 2;
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha3))
+            {
+                m_ChosenAttackType = 3;
+            }
+#endif  // !P56
 
             if (Input.GetKeyDown(KeyCode.Alpha5))
             {
@@ -896,6 +1005,44 @@ namespace Unity.BossRoom.Gameplay.UserInput
             {
                 m_UpwardVelocity = 0f;
                 m_JumpStateChanged = true;
+            }
+
+            // For dash
+            if (UnityEngine.Input.GetKeyDown(KeyCode.LeftShift))
+            {
+                m_DoDash = true;
+            }
+            else if (UnityEngine.Input.GetKeyUp(KeyCode.LeftShift))
+            {
+                m_DoDash = false;
+            }
+
+            // For defense
+            if (UnityEngine.Input.GetKeyDown(KeyCode.E))
+            {
+                if (m_IsDownKeyCodeE == false)
+                {
+                    m_IsChangedDefenseState = true;
+                    m_IsDownKeyCodeE = true;
+                }
+            }
+            else if (UnityEngine.Input.GetKeyUp(KeyCode.E))
+            {
+                m_IsDownKeyCodeE = false;
+            }
+
+            // For crouching
+            if (UnityEngine.Input.GetKeyDown(KeyCode.C))
+            {
+                if (m_IsDownKeyCodeC == false)
+                {
+                    m_IsChangedCrouchingState = true;
+                    m_IsDownKeyCodeC = true;
+                }
+            }
+            else if (UnityEngine.Input.GetKeyUp(KeyCode.C))
+            {
+                m_IsDownKeyCodeC = false;
             }
 
             // Change mouse cursor lock state. 
@@ -942,11 +1089,19 @@ namespace Unity.BossRoom.Gameplay.UserInput
 #if UNITY_STANDALONE
             if (!EventSystem.current.IsPointerOverGameObject())
             {
-                // Handle mouse click event on right mouse button.
-                if (UnityEngine.Input.GetMouseButtonDown(1) && m_CurrentSkillInput == null)
+                // Handle mouse click event on left mouse button.
+                if (UnityEngine.Input.GetMouseButtonDown(0) && m_CurrentSkillInput == null)
                 {
-                    switch (m_SelectedAction)
+                    // If mouse cursor is not locked, lock it.
+                    if (Cursor.lockState == CursorLockMode.None)
                     {
+                        Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
+                        return;
+                    }
+
+                    switch (m_ChosenAttackType)
+                    {
+                        // Always an event is regarded as keyboard event.
                         case 1:
                             RequestAction(actionState1.actionID, SkillTriggerStyle.Keyboard);
                             break;
@@ -956,25 +1111,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         case 3:
                             RequestAction(actionState3.actionID, SkillTriggerStyle.Keyboard);
                             break;
-                        case 4:
-                            RequestAction(GameDataSource.Instance.Emote1ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
-                            break;
-                        case 5:
-                            RequestAction(GameDataSource.Instance.Emote2ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
-                            break;
-                        case 6:
-                            RequestAction(GameDataSource.Instance.Emote3ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
-                            break;
-                        case 7:
-                            RequestAction(GameDataSource.Instance.Emote4ActionPrototype.ActionID, SkillTriggerStyle.Keyboard);
-                            break;
                         default:
                             break;
                     }
                 }
-                else if (UnityEngine.Input.GetMouseButtonUp(1))
+                else if (UnityEngine.Input.GetMouseButtonUp(0))
                 {
-                    switch (m_SelectedAction)
+                    switch (m_ChosenAttackType)
                     {
                         case 1:
                             RequestAction(actionState1.actionID, SkillTriggerStyle.KeyboardRelease);
@@ -990,35 +1133,70 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     }
                 }
 
-                // Handle mouse click event on left mouse button.
-                if (UnityEngine.Input.GetMouseButtonDown(0) && m_CurrentSkillInput == null)
+                // Handle mouse click event on right mouse button.
+                if (UnityEngine.Input.GetMouseButtonDown(1) && m_CurrentSkillInput == null)
                 {
-                    RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
-
-                    // If mouse cursor is not locked, lock it.
-                    if (Cursor.lockState == CursorLockMode.None)
+                    if (m_IsDownMouseButton1 == false)
                     {
-                        Cursor.lockState = CursorLockMode.Locked;   // Hide mouse cursor.
+                        m_IsADS = !m_IsADS; // toggle
+                        m_IsDownMouseButton1 = true;
+
+                        if (m_IsADS == false)
+                        {
+                            m_CameraController.ZoomReset();
+                        }
+                        else
+                        {
+                            m_CameraController.ZoomUp();
+                        }
                     }
+                }
+                else if (UnityEngine.Input.GetMouseButtonUp(1))
+                {
+                    m_IsDownMouseButton1 = false;
+                }
+
+                // Handle mouse click event on middle mouse button.
+                if (UnityEngine.Input.GetMouseButtonDown(2) && m_CurrentSkillInput == null)
+                {
+                    m_IsDefending = true;
+                }
+                else if (UnityEngine.Input.GetMouseButtonUp(2))
+                {
+                    m_IsDefending = false;
                 }
             }
 
             // Change selected action by mouse wheel.
             float wheel = Input.GetAxis("Mouse ScrollWheel");
-            if (wheel > 0f)
+            if (m_IsADS)
             {
-                m_SelectedAction++;
-                if (m_SelectedAction > k_MaxAction)
+                if (wheel > 0f)
                 {
-                    m_SelectedAction = k_MinAction;
+                    m_CameraController.ZoomUp();
+                }
+                else if (wheel < 0)
+                {
+                    m_CameraController.ZoomDown();
                 }
             }
-            else if (wheel < 0)
+            else
             {
-                m_SelectedAction--;
-                if (m_SelectedAction < k_MinAction)
+                if (wheel > 0f)
                 {
-                    m_SelectedAction = k_MaxAction;
+                    m_ChosenAttackType++;
+                    if (m_ChosenAttackType > k_MaxAttackType)
+                    {
+                        m_ChosenAttackType = k_MinAttackType;
+                    }
+                }
+                else if (wheel < 0)
+                {
+                    m_ChosenAttackType--;
+                    if (m_ChosenAttackType < k_MinAttackType)
+                    {
+                        m_ChosenAttackType = k_MaxAttackType;
+                    }
                 }
             }
 #elif UNITY_ANDROID
@@ -1113,17 +1291,16 @@ namespace Unity.BossRoom.Gameplay.UserInput
         }
 
 #if P56
-#if UNITY_EDITOR || DEVELOPMENT_BUILD || OVR
         void OnGUI()
         {
             string text =
                     "Position: " + m_LastActionMovement.Position.ToString() + "\n" +
                     "Direction: " + m_LastActionMovement.Rotation.eulerAngles.ToString() + "\n" +
                     "UpwardVelocity: " + m_UpwardVelocity.ToString() + "\n" +
-                    "SelectedAction: " + m_SelectedAction;
+                    "CurrentAttackType: " + m_CurrentAttackType + "\n" +
+                    m_DebugMsg;
             DebugLogText.Log(text);
         }
-#endif
 #endif  // P56
 
         void UpdateAction1()

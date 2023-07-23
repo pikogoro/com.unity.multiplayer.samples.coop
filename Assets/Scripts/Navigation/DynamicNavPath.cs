@@ -48,6 +48,19 @@ namespace Unity.BossRoom.Navigation
         /// </summary>
         Transform m_TransformLockOnTarget = null;
         public Transform TransformLockOnTarget { get { return m_TransformLockOnTarget; } }
+
+        const float k_GroundRaycastDistance = 100f;
+        readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
+        LayerMask m_GroundLayerMask;
+        RaycastHitComparer m_RaycastHitComparer;
+
+        public class RaycastHitComparer : IComparer<RaycastHit>
+        {
+            public int Compare(RaycastHit x, RaycastHit y)
+            {
+                return x.distance.CompareTo(y.distance);
+            }
+        }
 #endif  // P56
 
         /// <summary>
@@ -63,9 +76,46 @@ namespace Unity.BossRoom.Navigation
             m_NavigationSystem = navigationSystem;
 
             navigationSystem.OnNavigationMeshChanged += OnNavMeshChanged;
+
+#if P56
+            m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground", "Environment" });
+            m_RaycastHitComparer = new RaycastHitComparer();
+#endif  // P56
         }
 
+#if !P56
         Vector3 TargetPosition => m_TransformTarget != null ? m_TransformTarget.position : m_PositionTarget;
+#else   // !P56
+        Vector3 TargetPosition
+        {
+            get
+            {
+                if (m_TransformTarget != null)
+                {
+                    Vector3 groundPosition = m_TransformTarget.position;
+                    var ray = new Ray(m_TransformTarget.position + new Vector3(0f, 0.5f, 0f), Vector3.down);
+                    var hits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_GroundRaycastDistance, m_GroundLayerMask);
+
+                    if (hits > 0)
+                    {
+                        if (hits > 1)
+                        {
+                            // sort hits by distance
+                            Array.Sort(k_CachedHit, 0, hits, m_RaycastHitComparer);
+                        }
+
+                        groundPosition = k_CachedHit[0].point;
+                    }
+
+                    return groundPosition;
+                }
+                else
+                {
+                    return m_PositionTarget;
+                }
+            }
+        }
+#endif  // P56
 
         /// <summary>
         /// Set the target of this path to follow a moving transform.
@@ -93,16 +143,22 @@ namespace Unity.BossRoom.Navigation
         /// <param name="target">The target position.</param>
 #if !P56
         public void SetTargetPosition(Vector3 target)
-#else   // P56
-        /// <param name="hasLockOnTarget">Whether has a "locked on" target.</param>
-        public void SetTargetPosition(Vector3 target, bool hasLockOnTarget)
-#endif  // P56
         {
             // If there is an nav mesh area close to the target use a point inside the nav mesh instead.
             if (NavMesh.SamplePosition(target, out NavMeshHit hit, 2f, NavMesh.AllAreas))
             {
                 target = hit.position;
             }
+#else   // P56
+        /// <param name="hasLockOnTarget">Whether has a "locked on" target.</param>
+        public void SetTargetPosition(Vector3 target, bool hasLockOnTarget)
+        {
+            // If there is an nav mesh area close to the target use a point inside the nav mesh instead.
+            if (NavMesh.SamplePosition(target, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+            {
+                target = hit.position;
+            }
+#endif  // P56
 
             m_PositionTarget = target;
             m_TransformTarget = null;
@@ -136,11 +192,7 @@ namespace Unity.BossRoom.Navigation
         /// </summary>
         /// <param name="distance">The distance to move.</param>
         /// <returns>Returns the movement vector.</returns>
-#if !P56
         public Vector3 MoveAlongPath(float distance)
-#else   // !P56
-        public Vector3 MoveAlongPath(float distance, bool isGrounded)
-#endif  // !P56
         {
             if (m_TransformTarget != null)
             {
@@ -154,42 +206,14 @@ namespace Unity.BossRoom.Navigation
 
             var currentPredictedPosition = m_Agent.transform.position;
             var remainingDistance = distance;
-#if P56
-            float positionY = currentPredictedPosition.y;
-#endif  // P56
-
             while (remainingDistance > 0)
             {
-#if !P56
                 var toNextPathPoint = m_Path[0] - currentPredictedPosition;
-#else   //!P56
-                Vector3 toNextPathPoint;
-
-                if (isGrounded)
-                {
-                    toNextPathPoint = m_Path[0] - currentPredictedPosition;
-                }
-                else
-                {
-                    // If not grounded, ignore position y to calculate distance.
-                    Vector3 path = m_Path[0];
-                    path.y = positionY;
-                    toNextPathPoint = path - currentPredictedPosition;
-
-                }
-#endif  // !P56
 
                 // If end point is closer then distance to move
                 if (toNextPathPoint.sqrMagnitude < remainingDistance * remainingDistance)
                 {
                     currentPredictedPosition = m_Path[0];
-#if P56
-                    if (!isGrounded)
-                    {
-                        // If not grounded, ignore position y to calculate distance.
-                        currentPredictedPosition.y = positionY;
-                    }
-#endif  // P56
                     m_Path.RemoveAt(0);
                     remainingDistance -= toNextPathPoint.magnitude;
                 }

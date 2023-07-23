@@ -30,7 +30,20 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             public AnimatorOverrideController animatorOverrides; // references a separate stand-alone object in the project
             private List<Renderer> m_CachedRenderers;
 #if P56
-            public UnityEngine.Avatar avatarOverrides; // reference an humanoid avatar
+            public UnityEngine.Avatar avatarOverrides; // reference to humanoid avatar
+
+            // IK
+            public GameObject view;
+            public GameObject leftHandIK;
+            public Vector3 leftHandIKRotationOffset;
+            public GameObject rightHandIK;
+            public Vector3 rightHandIKRotationOffset;
+
+            /*
+            // Gear
+            public GameObject[] gearsLeftHand;
+            public GameObject[] gearsRightHand;
+            */
 #endif  // P56
 
             public void SetFullActive(bool isActive)
@@ -81,13 +94,6 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         [SerializeField]
         CharacterModelSet m_CharacterModel;
-
-#if P56
-        public GameObject BoneHead
-        {
-            get { return m_CharacterModel.head.transform.parent.parent.gameObject; }
-        }
-#endif  // P56
 
         public CharacterModelSet CharacterModel => m_CharacterModel;
 
@@ -163,6 +169,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if P56
                     if (m_CharacterModel.avatarOverrides)
                     {
+                        // For using Humanoid animation.
                         m_Animator.avatar = m_CharacterModel.avatarOverrides;
                     }
 #endif  // P56

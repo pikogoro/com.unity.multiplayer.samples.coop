@@ -43,7 +43,13 @@ namespace Unity.BossRoom.Gameplay.Actions
             if (m_Data.TargetIds != null && m_Data.TargetIds.Length > 0)
             {
                 NetworkObject initialTarget = NetworkManager.Singleton.SpawnManager.SpawnedObjects[m_Data.TargetIds[0]];
+//#if !P56
                 if (initialTarget)
+/*
+#else   // !P56
+                if (!serverCharacter.IsNpc && initialTarget)
+#endif  // P56
+*/
                 {
                     // face our target
                     serverCharacter.physicsWrapper.Transform.LookAt(initialTarget.transform.position);

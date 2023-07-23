@@ -48,6 +48,20 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// Indicates how the character's movement should be depicted.
         public NetworkVariable<MovementStatus> MovementStatus { get; } = new NetworkVariable<MovementStatus>();
 
+#if P56
+        // Indicates the character's movement direction (normalized).
+        public NetworkVariable<Vector3> MovementDirection { get; } = new NetworkVariable<Vector3>();
+
+        // Indicates character's current gear.
+        public NetworkVariable<int> CurrentGear { get; } = new NetworkVariable<int>();
+
+        // Indicates character is defending or not.
+        public NetworkVariable<bool> IsDefending { get; } = new NetworkVariable<bool>();
+
+        // Indicates character is crouching or not.
+        public NetworkVariable<bool> IsCrouching { get; } = new NetworkVariable<bool>();
+#endif  // P56
+
         public NetworkVariable<ulong> HeldNetworkObject { get; } = new NetworkVariable<ulong>();
 
         /// <summary>
@@ -141,12 +155,42 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         private AIBrain m_AIBrain;
         NetworkAvatarGuidState m_State;
 
+#if P56
+        [SerializeField]
+        float m_HitRadius = 5f;
+
+        const int k_MaxCollisions = 16;
+
+        Collider[] m_CollisionCache = new Collider[k_MaxCollisions];
+
+        [SerializeField]
+        LayerMask m_LayerMask;
+
+        [SerializeField]
+        int m_DamagePoints = 50;
+
+        [SerializeField]
+        float m_KnockbackSpeed = 2.1f;
+
+        [SerializeField]
+        float m_KnockbackDuration = 0.4f;
+
+        // IK
+        public NetworkVariable<float> RotationX { get; } = new NetworkVariable<float>();
+#endif  // P56
+
         void Awake()
         {
             m_ServerActionPlayer = new ServerActionPlayer(this);
             NetLifeState = GetComponent<NetworkLifeState>();
             NetHealthState = GetComponent<NetworkHealthState>();
             m_State = GetComponent<NetworkAvatarGuidState>();
+#if P56
+            if (m_LayerMask == 0)
+            {
+                m_LayerMask = LayerMask.GetMask(new[] { "PCs", "NPCs" });   // PCs and NPCs are damaged.
+            }
+#endif  // P56
         }
 
         public override void OnNetworkSpawn()
@@ -228,6 +272,15 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         [ServerRpc]
         public void RecvDoActionServerRPC(ActionRequestData data)
         {
+#if P56
+            Movement.StopDashing();
+
+            if (IsDefending.Value == true)
+            {
+                IsDefending.Value = false;
+            }
+#endif  // P56
+
             ActionRequestData data1 = data;
             if (!GameDataSource.Instance.GetActionPrototypeByID(data1.ActionID).Config.IsFriendly)
             {
@@ -297,11 +350,36 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         {
             yield return new WaitForSeconds(m_KilledDestroyDelaySeconds);
 
+#if P56
+            Detonate();     // Indicated type characters are damaged by last explosion.
+#endif  // P56
+
             if (NetworkObject != null)
             {
                 NetworkObject.Despawn(true);
             }
         }
+
+#if P56
+        void Detonate()
+        {
+            var hits = Physics.OverlapSphereNonAlloc(transform.position, m_HitRadius, m_CollisionCache, m_LayerMask);
+
+            for (int i = 0; i < hits; i++)
+            {
+                if (m_CollisionCache[i].gameObject.TryGetComponent(out IDamageable damageReceiver))
+                {
+                    damageReceiver.ReceiveHP(null, -m_DamagePoints);
+
+                    var serverCharacter = m_CollisionCache[i].gameObject.GetComponentInParent<ServerCharacter>();
+                    if (serverCharacter)
+                    {
+                        serverCharacter.Movement.StartKnockback(transform.position, m_KnockbackSpeed, m_KnockbackDuration);
+                    }
+                }
+            }
+        }
+#endif  // P56
 
         /// <summary>
         /// Receive an HP change from somewhere. Could be healing or damage.
@@ -410,6 +488,5 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// This character's AIBrain. Will be null if this is not an NPC.
         /// </summary>
         public AIBrain AIBrain { get { return m_AIBrain; } }
-
     }
 }

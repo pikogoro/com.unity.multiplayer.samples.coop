@@ -12,9 +12,23 @@ namespace Unity.BossRoom.Gameplay.Actions
     /// </summary>
     public struct ActionMovement : INetworkSerializable
     {
+        public enum State
+        {
+            Null = 0,
+            IsChanged = 1,
+            Enabled = 2,
+            Disabled = 3,
+        }
+
         public Vector3 Position;            // position of character.
         public Quaternion Rotation;         // rotation of character's facing.
+        public float RotationX;
         public float UpwardVelocity;        // upward velocity of character.
+        public int AttackType;              // attack type chosen (0: no change, 1-: attack type).
+        public State ADSState;              // ADS(aim down sight) state.
+        public State DefenseState;          // defense state.
+        public State DashState;             // dash state.
+        public State CrouchingState;        // crouching state.
 
         public static Vector3 PositionNull
         {
@@ -32,7 +46,13 @@ namespace Unity.BossRoom.Gameplay.Actions
             None = 0,
             HasPosition = 1,
             HasRotation = 1 << 1,
-            HasUpwardVelocity = 1 << 2
+            HasRotationX = 1 << 2,
+            HasUpwardVelocity = 1 << 3,
+            HasAttackType = 1 << 4,
+            HasADSState = 1 << 5,
+            HasDefenseState = 1 << 6,
+            HasDashState = 1 << 7,
+            HasCrouchingState = 1 << 8,
         }
 
         public static bool IsNull(Vector3 value)
@@ -56,9 +76,33 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 flags |= PackFlags.HasRotation;
             }
+            if (RotationX != 0f)
+            {
+                flags |= PackFlags.HasRotationX;
+            }
             if (UpwardVelocity != 0f)
             {
                 flags |= PackFlags.HasUpwardVelocity;
+            }
+            if (AttackType != 0)
+            {
+                flags |= PackFlags.HasAttackType;
+            }
+            if (ADSState != State.Null)
+            {
+                flags |= PackFlags.HasADSState;
+            }
+            if (DefenseState != State.Null)
+            {
+                flags |= PackFlags.HasDefenseState;
+            }
+            if (DashState != State.Null)
+            {
+                flags |= PackFlags.HasDashState;
+            }
+            if (CrouchingState != State.Null)
+            {
+                flags |= PackFlags.HasCrouchingState;
             }
 
             return flags;
@@ -82,9 +126,33 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 serializer.SerializeValue(ref Rotation);
             }
+            if ((flags & PackFlags.HasRotationX) != 0)
+            {
+                serializer.SerializeValue(ref RotationX);
+            }
             if ((flags & PackFlags.HasUpwardVelocity) != 0)
             {
                 serializer.SerializeValue(ref UpwardVelocity);
+            }
+            if ((flags & PackFlags.HasAttackType) != 0)
+            {
+                serializer.SerializeValue(ref AttackType);
+            }
+            if ((flags & PackFlags.HasADSState) != 0)
+            {
+                serializer.SerializeValue(ref ADSState);
+            }
+            if ((flags & PackFlags.HasDefenseState) != 0)
+            {
+                serializer.SerializeValue(ref DefenseState);
+            }
+            if ((flags & PackFlags.HasDashState) != 0)
+            {
+                serializer.SerializeValue(ref DashState);
+            }
+            if ((flags & PackFlags.HasCrouchingState) != 0)
+            {
+                serializer.SerializeValue(ref CrouchingState);
             }
         }
     }

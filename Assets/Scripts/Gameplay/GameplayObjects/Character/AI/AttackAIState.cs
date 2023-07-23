@@ -16,6 +16,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
 
         List<Action> m_AttackActions;
 
+#if P56
+        const float k_CollisionRaycastDistance = 100f;
+        readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
+        RaycastHitComparer m_RaycastHitComparer;
+        LayerMask m_CollisionMask;
+        LayerMask m_BlockerMask;
+#endif  // P56
+
         public AttackAIState(AIBrain brain, ServerActionPlayer serverActionPlayer)
         {
             m_Brain = brain;
@@ -48,6 +56,15 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
 
             // clear any old foe info; we'll choose a new one in Update()
             m_Foe = null;
+
+#if P56
+            m_CollisionMask = LayerMask.GetMask(new[] { "PCs", "NPCs", "Ground", "Environment" });
+            m_BlockerMask = LayerMask.GetMask(new[] { "NPCs", "Ground", "Environment" });
+            m_RaycastHitComparer = new RaycastHitComparer();
+
+            // Sort attack by "range" (shorter to longer)
+            m_AttackActions.Sort((a, b) => a.Config.Range.CompareTo(b.Config.Range));
+#endif  // P56
         }
 
         public override void Update()
@@ -100,6 +117,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
                 return;
             }
 
+#if !P56
             // attack!
             var attackData = new ActionRequestData
             {
@@ -108,6 +126,74 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
                 ShouldClose = true,
                 Direction = m_Brain.GetMyServerCharacter().physicsWrapper.Transform.forward
             };
+#else   // !P56
+            Vector3 origin = new Vector3(0f, 1.5f, 0f);     // TBD
+            Vector3 direction = m_Foe.transform.position - m_Brain.GetMyServerCharacter().physicsWrapper.Transform.position;
+
+            bool hit = false;
+
+            Ray ray = new Ray(m_Brain.GetMyServerCharacter().physicsWrapper.Transform.position + origin, direction);
+
+            int hits = Physics.RaycastNonAlloc(ray,
+                k_CachedHit,
+                k_CollisionRaycastDistance,
+                m_CollisionMask);
+
+            if (hits > 0)
+            {
+                if (hits > 1)
+                {
+                    // sort hits by distance
+                    Array.Sort(k_CachedHit, 0, hits, m_RaycastHitComparer);
+                }
+
+                for (int i = 0; i < hits; i++)
+                {
+                    int layerTest = 1 << k_CachedHit[i].collider.gameObject.layer;
+                    if ((layerTest & m_BlockerMask) != 0)
+                    {
+                        break;
+                    }
+
+                    if (k_CachedHit[i].transform == m_Foe.transform)
+                    {
+                        hit = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit)
+            {
+                // Set distance little bit closer to target.
+                float distance = (m_Brain.GetMyServerCharacter().physicsWrapper.Transform.position - m_Foe.transform.position).magnitude - 2f;
+                if (distance < 2f)
+                {
+                    distance = 2f;
+                }
+
+                // charge!
+                var actionData = new ActionRequestData
+                {
+                    ActionID = GameDataSource.Instance.GeneralChaseActionPrototype.ActionID,
+                    TargetIds = new ulong[] { m_Foe.NetworkObjectId },
+                    Amount = distance,
+                };
+                m_ServerActionPlayer.ClearActions(true);   // clear all actions once.
+                m_ServerActionPlayer.PlayAction(ref actionData);
+                return;
+            }
+
+            // attack!
+            var attackData = new ActionRequestData
+            {
+                ActionID = m_CurAttackAction.ActionID,
+                TargetIds = new ulong[] { m_Foe.NetworkObjectId },
+                ShouldClose = true,
+                Position = origin,
+                Direction = direction
+            };
+#endif  // P56
             m_ServerActionPlayer.PlayAction(ref attackData);
         }
 
@@ -140,6 +226,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
         /// <returns>Action to attack with, or null</returns>
         private Action ChooseAttack()
         {
+#if !P56
             // make a random choice
             int idx = Random.Range(0, m_AttackActions.Count);
 
@@ -164,6 +251,48 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character.AI
 
             // none of our actions are available now
             return null;
+#else   // !P56
+            float distanceSqr = (m_Brain.GetMyServerCharacter().physicsWrapper.Transform.position - m_Foe.transform.position).sqrMagnitude;
+            int idxMax = m_AttackActions.Count - 1;
+            int idxMin = 0;
+
+            // narrow down candidates of attack action by range.
+            foreach (Action attack in m_AttackActions)
+            {
+                float rangeSqr = Mathf.Pow(attack.Config.Range, 2f);
+                if (distanceSqr < rangeSqr)
+                {
+                    idxMax = m_AttackActions.IndexOf(attack);
+                }
+                else if (rangeSqr < distanceSqr)
+                {
+                    if (idxMin < idxMax)
+                    {
+                        idxMin = m_AttackActions.IndexOf(attack) + 1;
+                    }
+                }
+            }
+
+            // make a random choice appropriate range
+            int idx = Random.Range(idxMin, idxMax);
+
+            // now iterate through our options to find one that's currently usable
+            for (int i = idxMin; i <= idxMax; i++)
+            {
+                Action attack = m_AttackActions[idx++];
+                if (idx > idxMax)
+                {
+                    idx = idxMin;
+                }
+                if (m_ServerActionPlayer.IsReuseTimeElapsed(attack.ActionID))
+                {
+                    return attack;
+                }
+            }
+
+            // none of our actions are available now
+            return null;
+#endif  // !P56
         }
     }
 }

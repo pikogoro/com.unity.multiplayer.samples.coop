@@ -57,6 +57,13 @@ namespace Unity.BossRoom.Gameplay.UI
         {
             m_PostGameState.NetworkPostGame.WinState.OnValueChanged += OnWinStateChanged;
             SetPostGameUI(m_PostGameState.NetworkPostGame.WinState.Value);
+
+#if P56
+            if (Cursor.lockState == CursorLockMode.Locked)
+            {
+                Cursor.lockState = CursorLockMode.None; // Show mouse cursor.
+            }
+#endif  // P56
         }
 
         void OnDestroy()

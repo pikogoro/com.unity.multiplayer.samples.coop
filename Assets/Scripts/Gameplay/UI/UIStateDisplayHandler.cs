@@ -259,7 +259,6 @@ namespace Unity.BossRoom.Gameplay.UI
                 }
                 m_UIStateRectTransform.position = m_WorldPos;
 #endif  // !OVR
-#else  // P56
                 // set world position with world offset added
                 m_WorldPos.Set(m_TransformToTrack.position.x,
                     m_TransformToTrack.position.y + m_VerticalWorldOffset,

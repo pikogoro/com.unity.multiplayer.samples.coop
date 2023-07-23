@@ -38,7 +38,7 @@ namespace Unity.BossRoom.Gameplay.UI
 
         void OnClientMove(Vector3 position)
         {
-#if !P56
+#if !P56    // Do not show click feed back lerper.
             m_FeedbackObj.SetActive(true);
             m_ClickFeedbackLerper.SetTarget(position);
 #endif  // P56

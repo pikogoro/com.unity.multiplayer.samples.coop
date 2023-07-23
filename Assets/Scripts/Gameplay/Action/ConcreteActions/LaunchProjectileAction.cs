@@ -16,17 +16,27 @@ namespace Unity.BossRoom.Gameplay.Actions
         private bool m_Launched = false;
 
 #if P56
+        protected Vector3 m_Position;
         protected Vector3 m_Direction;
 #endif  // P56
 
         public override bool OnStart(ServerCharacter serverCharacter)
         {
+#if !P56
             //snap to face the direction we're firing, and then broadcast the animation, which we do immediately.
             serverCharacter.physicsWrapper.Transform.forward = Data.Direction;
+#else   // !P56
+            if (serverCharacter.IsNpc)  // Only NPC
+            {
+                //snap to face the direction we're firing, and then broadcast the animation, which we do immediately.
+                serverCharacter.physicsWrapper.Transform.forward = Data.Direction;
+            }
+#endif  // !P56
 
             serverCharacter.serverAnimationHandler.NetworkAnimator.SetTrigger(Config.Anim);
             serverCharacter.clientCharacter.RecvDoActionClientRPC(Data);
 #if P56
+            m_Position = Data.Position;
             m_Direction = Data.Direction;
 #endif  // P56
             return true;
@@ -81,15 +91,17 @@ namespace Unity.BossRoom.Gameplay.Actions
                 // point the projectile the same way we're facing
 #if !P56
                 no.transform.forward = parent.physicsWrapper.Transform.forward;
-#else   // !P56
-                no.transform.forward = m_Direction;
-#endif  // !P56
 
                 //this way, you just need to "place" the arrow by moving it in the prefab, and that will control
                 //where it appears next to the player.
                 no.transform.position = parent.physicsWrapper.Transform.localToWorldMatrix.MultiplyPoint(no.transform.position);
-
                 no.GetComponent<PhysicsProjectile>().Initialize(parent.NetworkObjectId, projectileInfo);
+#else   // !P56
+                no.transform.forward = m_Direction;
+
+                no.transform.position = parent.physicsWrapper.Transform.localToWorldMatrix.MultiplyPoint(m_Position);
+                no.GetComponent<PhysicsProjectile>().Initialize(parent.NetworkObjectId, projectileInfo, parent.transform, parent.IsNpc);
+#endif  // !P56
 
                 no.Spawn(true);
             }

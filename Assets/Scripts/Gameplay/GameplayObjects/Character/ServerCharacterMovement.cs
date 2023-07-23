@@ -1,3 +1,5 @@
+#define USE_THRUSTER
+
 using System;
 using Unity.BossRoom.Gameplay.Configuration;
 using Unity.BossRoom.Navigation;
@@ -7,6 +9,7 @@ using UnityEngine.AI;
 using UnityEngine.Assertions;
 #if P56
 using Unity.BossRoom.Gameplay.Actions;
+using Unity.BossRoom.Utils;
 #endif  // P56
 
 namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
@@ -17,6 +20,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         PathFollowing = 1,
         Charging = 2,
         Knockback = 3,
+#if P56
+        Walking = 4,    // Player only
+        Dashing = 5,    // Player only
+#endif  // P56
     }
 
     /// <summary>
@@ -42,11 +49,21 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         // For jump
         float m_UpwardVelocity = 0f;
         bool m_IsGrounded = true;
-        const float k_GroundRaycastDistance = 100f;
-        readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
-        LayerMask m_GroundLayerMask;
-        RaycastHitComparer m_RaycastHitComparer = null;
+        PositionUtil m_PositionUtil;
         const float k_MaxNavMeshDistance = 1f;
+        bool m_IsOnNavmesh = true;
+        Vector3 m_MovementPosition;
+
+        float m_RotationX;
+        float m_PreviousRotationX;
+
+        Vector3 m_MovementDirection;
+        Vector3 m_PreviousMovementDirection;
+
+        bool m_IsADS = false;
+        bool m_IsDashing = false;
+        bool m_IsCrouching = false;
+        bool m_PreviousIsCrouching;
 #endif  // P56
 
         private MovementState m_MovementState;
@@ -77,8 +94,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             enabled = false;
 
 #if P56
-            m_RaycastHitComparer = new RaycastHitComparer();
-            m_GroundLayerMask = LayerMask.GetMask(new[] { "Ground" });
+            m_PositionUtil = new PositionUtil();
 #endif  // P56
         }
 
@@ -120,22 +136,30 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 return;
             }
 #endif
-            m_MovementState = MovementState.PathFollowing;
 #if !P56
+            m_MovementState = MovementState.PathFollowing;
             m_NavPath.SetTargetPosition(position);
 #else   // !P56
+            // This is temporary movement state.
+            m_MovementState = MovementState.Walking;
+
             if (ActionMovement.IsNull(movement.Position))
             {
-                // if movement position is nothing.
-                // Get ground position considering case of character is in air.
-                Vector3 groundPosition = GetGroundPosition(transform.position + new Vector3(0f, 3f, 0f));
-                m_NavPath.SetTargetPosition(transform.position, m_HasLockOnTarget);
+                // if movement position is null, don't move.
+                m_MovementPosition = transform.position;
             }
             else
             {
-                // if movement position is indicated.
-                // Always "movement.Position" is on mesh.
-                m_NavPath.SetTargetPosition(movement.Position, m_HasLockOnTarget);
+                // if movement position is not null, set new posision to movment position.
+                if (m_IsGrounded && m_IsOnNavmesh)
+                {
+                    Vector3 groundPosition = m_PositionUtil.GetGroundPosition(movement.Position);
+                    m_NavPath.SetTargetPosition(groundPosition, m_HasLockOnTarget);
+                }
+                else
+                {
+                    m_MovementPosition = movement.Position;
+                }
             }
 
             if (ActionMovement.IsNull(movement.Rotation))
@@ -149,18 +173,102 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_Rotation = movement.Rotation;
             }
 
+            m_RotationX = movement.RotationX;
+
             // For jump
+#if USE_THRUSTER
+            if (0f < movement.UpwardVelocity)
+            {
+                m_UpwardVelocity = movement.UpwardVelocity;
+            }
+#else   // USE_THRUSTER
             if (m_IsGrounded && 0f < movement.UpwardVelocity)
             {
                 m_UpwardVelocity = movement.UpwardVelocity;
-                m_IsGrounded = false;
             }
-            else
+             else
             {
                 if (0f < m_UpwardVelocity && movement.UpwardVelocity == 0f)
                 {
                     m_UpwardVelocity = 0f;
                 }
+            }
+#endif  // USE_THRUSTER
+
+            // For attack type
+            if (0 < movement.AttackType)
+            {
+                m_CharLogic.CurrentGear.Value = movement.AttackType;
+            }
+
+            // For ADS
+            switch (movement.ADSState)
+            {
+                case ActionMovement.State.IsChanged:
+                    m_IsADS = !m_IsADS; // toggle
+                    break;
+                case ActionMovement.State.Enabled:
+                    m_IsADS = true;
+                    break;
+                case ActionMovement.State.Disabled:
+                    m_IsADS = false;
+                    break;
+                default:
+                    break;
+            }
+
+            // For defense
+            switch (movement.DefenseState)
+            {
+                case ActionMovement.State.IsChanged:
+                    m_CharLogic.IsDefending.Value = !m_CharLogic.IsDefending.Value; // toggle
+                    break;
+                case ActionMovement.State.Enabled:
+                    if (m_CharLogic.IsDefending.Value != true)
+                    {
+                        m_CharLogic.IsDefending.Value = true;
+                    }
+                    break;
+                case ActionMovement.State.Disabled:
+                    if (m_CharLogic.IsDefending.Value != false)
+                    {
+                        m_CharLogic.IsDefending.Value = false;
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            // For dash
+            switch (movement.DashState)
+            {
+                case ActionMovement.State.IsChanged:
+                    m_IsDashing = !m_IsDashing;   // toggle
+                    break;
+                case ActionMovement.State.Enabled:
+                    m_IsDashing = true;
+                    break;
+                case ActionMovement.State.Disabled:
+                    m_IsDashing = false;
+                    break;
+                default:
+                    break;
+            }
+
+            // For crouching
+            switch (movement.CrouchingState)
+            {
+                case ActionMovement.State.IsChanged:
+                    m_IsCrouching = !m_IsCrouching;   // toggle
+                    break;
+                case ActionMovement.State.Enabled:
+                    m_IsCrouching = true;
+                    break;
+                case ActionMovement.State.Disabled:
+                    m_IsCrouching = false;
+                    break;
+                default:
+                    break;
             }
 #endif  // !P56
         }
@@ -193,6 +301,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         }
 
 #if P56
+        /*
         public void LockOnTransform(Transform lockOnTransform)
         {
             if (lockOnTransform != null)
@@ -206,6 +315,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_HasLockOnTarget = false;
             }
         }
+        */
 #endif  // P56
 
         /// <summary>
@@ -267,6 +377,25 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_CharLogic.MovementStatus.Value = currentState;
                 m_PreviousState = currentState;
             }
+#if P56
+            if (m_PreviousRotationX != m_RotationX)
+            {
+                m_CharLogic.RotationX.Value = m_RotationX;
+                m_PreviousRotationX = m_RotationX;
+            }
+
+            if (m_PreviousMovementDirection != m_MovementDirection)
+            {
+                m_CharLogic.MovementDirection.Value = m_MovementDirection;
+                m_PreviousMovementDirection = m_MovementDirection;
+            }
+
+            if (m_PreviousIsCrouching != m_IsCrouching)
+            {
+                m_CharLogic.IsCrouching.Value = m_IsCrouching;
+                m_PreviousIsCrouching = m_IsCrouching;
+            }
+#endif  // P56
         }
 
         public override void OnNetworkDespawn()
@@ -283,35 +412,18 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
         }
 
-#if P56
-        /// <summary>
-        /// Get ground position by using raycast.
-        /// </summary>
-        private Vector3 GetGroundPosition(Vector3 position)
-        {
-            Vector3 groundPosition = Vector3.zero;
-            var ray = new Ray(position, Vector3.down);
-            var groundHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_GroundRaycastDistance, m_GroundLayerMask);
-
-            if (groundHits > 0)
-            {
-                if (groundHits > 1)
-                {
-                    // sort hits by distance
-                    Array.Sort(k_CachedHit, 0, groundHits, m_RaycastHitComparer);
-                }
-
-                groundPosition = k_CachedHit[0].point;
-            }
-
-            return groundPosition;
-        }
-#endif  // P56
-
         private void PerformMovement()
         {
+#if P56
+            if (m_MovementState == MovementState.Idle)
+            {
+                m_IsDashing = false;
+                return;
+            }
+#else   // P56
             if (m_MovementState == MovementState.Idle)
                 return;
+#endif   // P56
 
             Vector3 movementVector;
 
@@ -346,38 +458,108 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #if !P56
                 movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount);
 #else   // !P56
-                movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount, m_IsGrounded);
+                if (m_IsGrounded && m_IsOnNavmesh)
+                {
+                    movementVector = m_NavPath.MoveAlongPath(desiredMovementAmount);
+
+                    // For ADS
+                    if (m_IsADS)
+                    {
+                        movementVector /= 2f;
+                    }
+                    // For dash
+                    else if (m_IsDashing)
+                    {
+                        // Change to local vector.
+                        Vector3 localMovementVector = transform.InverseTransformVector(movementVector);
+
+                        // Check character's direction is forward or not.
+                        if (localMovementVector.z > 0.01f)
+                        {
+                            localMovementVector.z *= 2f;
+
+                            // Change movement state to "Dashing".
+                            m_MovementState = MovementState.Dashing;
+                        }
+
+                        // Reverse to gloval vector.
+                        movementVector = transform.TransformVector(localMovementVector);
+                    }
+                }
+                else
+                {
+                    Vector3 tmpPosition = m_MovementPosition;
+                    tmpPosition.y = transform.position.y;
+                    movementVector = (tmpPosition - transform.position).normalized * desiredMovementAmount;
+                }
+
+                // For crouch
+                if (m_IsCrouching == true)
+                {
+                    // Disable crouching if character is on air or moving.
+                    if (m_IsGrounded == false || movementVector.magnitude > 0.01f)
+                    {
+                        m_IsCrouching = false;
+                    }
+                }
+
+                m_MovementDirection = transform.InverseTransformDirection(movementVector).normalized;
 #endif  // !P56
 
 #if !P56
                 // If we didn't move stop moving.
                 if (movementVector == Vector3.zero)
-#else   // !P56
-                // Stop moving.
-                if (movementVector == Vector3.zero && ActionMovement.IsNull(m_Rotation) && m_IsGrounded)
-#endif   // !P56
                 {
                     m_MovementState = MovementState.Idle;
                     return;
                 }
+#else   // !P56
+                // Stop moving.
+                if (movementVector == Vector3.zero && ActionMovement.IsNull(m_Rotation) && m_IsGrounded)
+                {
+                    m_MovementState = MovementState.Idle;
+                    return;
+                }
+#endif   // !P56
             }
 
 #if !P56
             m_NavMeshAgent.Move(movementVector);
             transform.rotation = Quaternion.LookRotation(movementVector);
 #else   // !P56
+
+            if (0f < m_UpwardVelocity)
+            {
+                m_IsGrounded = false;
+            }
+
             if (m_IsGrounded)
             {
-                m_NavMeshAgent.Move(movementVector);
+                if (m_IsOnNavmesh)
+                {
+                    m_NavMeshAgent.Move(movementVector);
+                }
+                else
+                {
+                    // [TODO] perform movement on out of Navmesh.
+                    m_MovementPosition = transform.position;
+                }
             }
             else
             {
-                // Calculate character new position by movement vector and upward velocity.
-                Vector3 position = transform.position + movementVector;
-                position.y += m_UpwardVelocity * Time.fixedDeltaTime;
+                // Calculate character next position by movement vector and upward velocity.
+                Vector3 currentPositon = transform.position;
+                Vector3 nextPosition = currentPositon + movementVector;
+                nextPosition.y += m_UpwardVelocity * Time.fixedDeltaTime;
+
+                Vector3 blockedPosition = m_PositionUtil.GetBlockedPosition(currentPositon, nextPosition, 0.5f);
+                if (blockedPosition != Vector3.zero)
+                {
+                    nextPosition = blockedPosition;
+                }
 
                 // Get ground position by character's top position.
-                Vector3 groundPosition = GetGroundPosition(position + new Vector3(0f, 3f, 0f));
+                Vector3 groundPosition = m_PositionUtil.GetGroundPosition(nextPosition, 0.5f);
 
                 // verify ground position is indeed on navmesh surface
                 if (NavMesh.SamplePosition(groundPosition,
@@ -385,10 +567,16 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                         k_MaxNavMeshDistance,
                         NavMesh.AllAreas))
                 {
-                    groundPosition = hit.position;
+                    // On NavMesh.
+                    m_IsOnNavmesh = true;
+                }
+                else
+                {
+                    // Off NavMesh.
+                    m_IsOnNavmesh = false;
                 }
 
-                if (groundPosition.y < position.y)
+                if (groundPosition.y < nextPosition.y)
                 {
                     // If in air, stop NavMeshAgene.
 
@@ -399,43 +587,45 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     }
 
                     // Update character position.
-                    transform.position = position;
+                    transform.position = nextPosition;
 
                     // Update upward velocity by gravity.
+                    m_IsGrounded = false;
                     m_UpwardVelocity += Physics.gravity.y * Time.fixedDeltaTime;
+
+                    // Trigger animation transition.
+                    m_CharLogic.serverAnimationHandler.NetworkAnimator.SetTrigger("Rise");
                 }
                 else
                 {
-                    if (m_UpwardVelocity > 0)
-                    {
-                        // If upward velocity is positive value, stop raising.
-                        // Character maybe breaks through ceiling, so ground position is lower than character's top position.
+                    // If upward velocity is not positive value, character was landed on ground.
 
-                        m_UpwardVelocity = 0;
-                    }
-                    else
+                    if (m_IsOnNavmesh)
                     {
-                        // If upward velocity is not positive value, character was landed on ground.
-
-                        // Start NavMeshAgent.
+                        // If on NavMesh, start NavMeshAgent.
                         m_NavMeshAgent.updatePosition = true;
                         m_NavMeshAgent.isStopped = false;
-                        m_NavMeshAgent.Warp(position);  // Warp character position.
-
-                        // If on the ground, stop falling.
-                        m_IsGrounded = true;
-                        m_UpwardVelocity = 0f;
+                        m_NavMeshAgent.Warp(groundPosition);  // Warp character position.
+                        m_NavPath.Clear();  // Clear path.
                     }
+
+                    // Update character position.
+                    transform.position = nextPosition;
+                    m_MovementPosition = transform.position;
+
+                    // If on the ground, stop falling.
+                    m_IsGrounded = true;
+                    m_UpwardVelocity = 0f;
+
+                    // Trigger animation transition.
+                    m_CharLogic.serverAnimationHandler.NetworkAnimator.SetTrigger("Grounded");
                 }
             }
 
             // Change direction.
-            if (m_MovementState == MovementState.Charging || m_MovementState == MovementState.Knockback || ActionMovement.IsNull(m_Rotation))
+            if (m_MovementState == MovementState.Charging || m_MovementState == MovementState.PathFollowing)
             {
-                if (movementVector != Vector3.zero)
-                {
-                    transform.rotation = Quaternion.LookRotation(movementVector);
-                }
+                transform.rotation = Quaternion.LookRotation(movementVector);
             }
 #if UNITY_ANDROID
             else if (m_NavPath.TransformLockOnTarget != null)
@@ -445,7 +635,10 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #endif  // UNITY_ANDROID
             else
             {
-                transform.rotation = Quaternion.Euler(new Vector3(0f, m_Rotation.eulerAngles.y, 0f));
+                if (!ActionMovement.IsNull(m_Rotation))
+                {
+                    transform.rotation = Quaternion.Euler(new Vector3(0f, m_Rotation.eulerAngles.y, 0f));
+                }
             }
 #endif  // !P56
 
@@ -482,9 +675,20 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     return MovementStatus.Idle;
                 case MovementState.Knockback:
                     return MovementStatus.Uncontrolled;
+#if P56
+                case MovementState.Dashing:
+                    return MovementStatus.Dashing;
+#endif  // P56
                 default:
                     return MovementStatus.Normal;
             }
         }
+
+#if P56
+        public void StopDashing()
+        {
+            m_IsDashing = false;
+        }
+#endif  // P56
     }
 }

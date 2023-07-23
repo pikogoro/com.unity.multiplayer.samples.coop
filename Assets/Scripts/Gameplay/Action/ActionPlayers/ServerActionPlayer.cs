@@ -3,6 +3,9 @@ using Unity.BossRoom.Gameplay.GameplayObjects;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using UnityEngine;
 using UnityEngine.Pool;
+#if P56
+using Unity.Netcode;
+#endif  // P56
 
 namespace Unity.BossRoom.Gameplay.Actions
 {
@@ -185,7 +188,7 @@ namespace Unity.BossRoom.Gameplay.Actions
 
                 int index = SynthesizeTargetIfNecessary(0);
                 SynthesizeChaseIfNecessary(index);
-
+                
                 m_Queue[0].TimeStarted = Time.time;
                 bool play = m_Queue[0].OnStart(m_ServerCharacter);
                 if (!play)
@@ -227,11 +230,42 @@ namespace Unity.BossRoom.Gameplay.Actions
 
             if (baseAction.Data.ShouldClose && baseAction.Data.TargetIds != null)
             {
+/* May be not needed...
+#if P56
+                // Get target transfrom.
+                NetworkObject target = NetworkManager.Singleton.SpawnManager.SpawnedObjects[baseAction.Data.TargetIds[0]];
+                Transform targetTransform;
+
+                if (PhysicsWrapper.TryGetPhysicsWrapper(baseAction.Data.TargetIds[0], out var physicsWrapper))
+                {
+                    targetTransform = physicsWrapper.Transform;
+                }
+                else
+                {
+                    targetTransform = target.transform;
+                }
+
+                // Set distance little bit closer to target.
+                float distance = (m_ServerCharacter.transform.position - targetTransform.position).magnitude - 2f;
+                if (distance < 2f)
+                {
+                    distance = 2f;
+                }
+#endif  // P56
+*/
                 ActionRequestData data = new ActionRequestData
                 {
                     ActionID = GameDataSource.Instance.GeneralChaseActionPrototype.ActionID,
                     TargetIds = baseAction.Data.TargetIds,
+/* May be not needed...
+#if !P56
+*/
                     Amount = baseAction.Config.Range
+/* May be not needed...
+#else   // !P56
+                    Amount = distance
+#endif  // !P56
+*/
                 };
                 baseAction.Data.ShouldClose = false; //you only get to do this once!
                 Action chaseAction = ActionFactory.CreateActionFromData(ref data);
@@ -250,6 +284,13 @@ namespace Unity.BossRoom.Gameplay.Actions
         {
             Action baseAction = m_Queue[baseIndex];
             var targets = baseAction.Data.TargetIds;
+
+#if P56
+            if (!m_ServerCharacter.IsNpc)   // Player doesn't need target action.
+            {
+                return baseIndex;
+            }
+#endif  // P56
 
             if (targets != null &&
                 targets.Length == 1 &&
