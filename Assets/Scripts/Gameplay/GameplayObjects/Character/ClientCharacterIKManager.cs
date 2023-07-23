@@ -1,3 +1,4 @@
+#if P56
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
 
@@ -218,3 +219,4 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         }
     }
 }
+#endif // P56

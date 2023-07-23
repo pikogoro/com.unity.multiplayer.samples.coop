@@ -95,12 +95,13 @@ namespace Unity.BossRoom.Gameplay.Actions
                 //this way, you just need to "place" the arrow by moving it in the prefab, and that will control
                 //where it appears next to the player.
                 no.transform.position = parent.physicsWrapper.Transform.localToWorldMatrix.MultiplyPoint(no.transform.position);
+                no.GetComponent<PhysicsProjectile>().Initialize(parent.NetworkObjectId, projectileInfo);
 #else   // !P56
                 no.transform.forward = m_Direction;
 
                 no.transform.position = parent.physicsWrapper.Transform.localToWorldMatrix.MultiplyPoint(m_Position);
-#endif  // !P56
                 no.GetComponent<PhysicsProjectile>().Initialize(parent.NetworkObjectId, projectileInfo, parent.transform, parent.IsNpc);
+#endif  // !P56
 
                 no.Spawn(true);
             }

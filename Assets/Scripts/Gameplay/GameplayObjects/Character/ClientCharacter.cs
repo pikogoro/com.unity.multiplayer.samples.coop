@@ -170,8 +170,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             m_ServerCharacter.IsStealthy.OnValueChanged += OnStealthyChanged;
             m_ServerCharacter.MovementStatus.OnValueChanged += OnMovementStatusChanged;
             OnMovementStatusChanged(MovementStatus.Normal, m_ServerCharacter.MovementStatus.Value);
-
 #if P56
+
             m_ServerCharacter.MovementDirection.OnValueChanged += OnMovementDirectionChanged;
             m_ServerCharacter.CurrentGear.OnValueChanged += OnCurrentGearChanged;
             m_ServerCharacter.IsDefending.OnValueChanged += OnDefenseStateChanged;
@@ -365,6 +365,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
             m_CurrentSpeed = GetVisualMovementSpeed(newValue);
 
+#if P56
             // Change IK state during dashing.
             if (newValue == MovementStatus.Dashing)
             {
@@ -374,6 +375,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             {
                 EnableIK();
             }
+#endif // P56
         }
 
 #if P56

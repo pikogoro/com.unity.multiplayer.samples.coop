@@ -1,3 +1,4 @@
+#if P56
 using UnityEngine;
 using Unity.BossRoom.Gameplay.GameplayObjects;
 
@@ -51,3 +52,4 @@ namespace Unity.BossRoom.Gameplay.Actions
         }
     }
 }
+#endif // P56
